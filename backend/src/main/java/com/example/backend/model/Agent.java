@@ -1,5 +1,6 @@
 package com.example.backend.model;
 
+import com.example.backend.converter.DurationToIntervalConverter;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -29,7 +30,8 @@ public class Agent {
     @Column(name = "total_calls", nullable = false)
     private Integer totalCalls = 0;
 
-    @Column(name = "total_call_time", columnDefinition = "interval", nullable = false)
+    @Column(name = "total_call_time", nullable = false)
+    @Convert(converter = DurationToIntervalConverter.class)
     private Duration totalCallTime = Duration.ZERO;
 
     @OneToOne
