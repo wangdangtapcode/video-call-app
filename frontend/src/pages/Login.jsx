@@ -27,10 +27,10 @@ export const Login = () => {
       console.log("Login response:", response.data);
 
       // Lấy thông tin user và agent từ response
-      const { user, agent } = response.data;
+      const { user, userMetric } = response.data;
 
       // Lưu toàn bộ data vào context
-      login({ user, agent });
+      login({ user, userMetric });
 
       if (user.role.name === "USER") {
         navigate("/");

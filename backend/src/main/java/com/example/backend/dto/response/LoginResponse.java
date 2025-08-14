@@ -1,7 +1,7 @@
 package com.example.backend.dto.response;
 
-import com.example.backend.model.Agent;
 import com.example.backend.model.User;
+import com.example.backend.model.UserMetric;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -13,5 +13,5 @@ import lombok.Setter;
 @AllArgsConstructor
 public class LoginResponse {
     private User user;
-    private Agent agent;
+    private UserMetric userMetric;
 }

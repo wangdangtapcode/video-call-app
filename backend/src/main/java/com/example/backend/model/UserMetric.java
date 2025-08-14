@@ -1,6 +1,5 @@
 package com.example.backend.model;
 
-import com.example.backend.converter.DurationToIntervalConverter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -8,15 +7,13 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.Duration;
-
 @Entity
-@Table(name = "agents")
+@Table(name = "user_metrics")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class Agent {
+public class UserMetric {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -36,6 +33,6 @@ public class Agent {
 
     @OneToOne
     @JsonIgnore
-    @JoinColumn(name = "user_id", nullable = false, foreignKey = @ForeignKey(name = "fk_agents_user"))
+    @JoinColumn(name = "user_id", nullable = true, foreignKey = @ForeignKey(name = "fk_user_metric_user"))
     private User user;
 }
