@@ -11,7 +11,7 @@ const USER_ACTIONS = {
 // Initial state
 const initialState = {
   user: null,
-  agent: null, // Thông tin agent (nếu user là agent)
+  userMetric: null, // Thông tin agent (nếu user là agent)
   isLoading: true, // Loading khi app khởi động
   isInitialized: false // Đã khởi tạo xong chưa
 };
@@ -23,7 +23,7 @@ const userReducer = (state, action) => {
       return {
         ...state,
         user: action.payload.user,
-        agent: action.payload.agent || null,
+        userMetric: action.payload.userMetric || null,
         isLoading: false,
         isInitialized: true
       };
@@ -32,7 +32,7 @@ const userReducer = (state, action) => {
       return {
         ...state,
         user: null,
-        agent: null,
+        userMetric: null,
         isLoading: false,
         isInitialized: true
       };
@@ -88,13 +88,13 @@ export const UserProvider = ({ children }) => {
     if (state.user) {
       const userData = {
         user: state.user,
-        agent: state.agent
+        userMetric: state.userMetric
       };
       localStorage.setItem('userData', JSON.stringify(userData));
     } else {
       localStorage.removeItem('userData');
     }
-  }, [state.user, state.agent]);
+  }, [state.user, state.userMetric]);
 
   // Action functions
   const login = (userData) => {
@@ -109,11 +109,11 @@ export const UserProvider = ({ children }) => {
   const value = {
     // State
     user: state.user,
-    agent: state.agent,
+    userMetric: state.userMetric,
     isLoading: state.isLoading,
     isInitialized: state.isInitialized,
     isAuthenticated: !!state.user,
-    isAgent: !!state.agent,
+    isAgent: !!state.userMetric,
     // Actions
     login,
     logout,

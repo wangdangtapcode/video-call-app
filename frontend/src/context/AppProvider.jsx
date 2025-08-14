@@ -1,15 +1,14 @@
 import React from 'react';
 import { UserProvider } from './UserContext';
+import { WebSocketProvider } from './WebSocketContext';
 
-/**
- * AppProvider - Wrapper cho UserContext
- * 
- * Hiện tại chỉ có UserContext, nhưng có thể mở rộng sau này
- */
+
 export const AppProvider = ({ children }) => {
   return (
     <UserProvider>
-      {children}
+      <WebSocketProvider>
+        {children}
+      </WebSocketProvider>
     </UserProvider>
   );
 };

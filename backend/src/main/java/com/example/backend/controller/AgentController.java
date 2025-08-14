@@ -16,8 +16,8 @@ public class AgentController {
     @Autowired
     private AgentService agentService;
 
-    @PostMapping
-    public ResponseEntity<AgentResponse> createAgent(@RequestBody AgentRequest agentRequest){
-        return ResponseEntity.ok(agentService.createAgent(agentRequest));
-    }
+//    @PostMapping
+//    public ResponseEntity<AgentResponse> createAgent(@RequestBody AgentRequest agentRequest){
+//        return ResponseEntity.ok(agentService.createAgent(agentRequest));
+//    }
 }

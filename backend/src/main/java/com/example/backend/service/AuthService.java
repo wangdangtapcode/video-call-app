@@ -3,9 +3,9 @@ package com.example.backend.service;
 import com.example.backend.dto.response.LoginResponse;
 import com.example.backend.exception.AuthenticationException;
 import com.example.backend.exception.ValidationException;
-import com.example.backend.model.Agent;
 import com.example.backend.model.User;
-import com.example.backend.repository.AgentRepository;
+import com.example.backend.model.UserMetric;
+import com.example.backend.repository.UserMetricRepository;
 import com.example.backend.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -18,7 +18,7 @@ public class AuthService {
     UserRepository userRepository;
 
     @Autowired
-    AgentRepository agentRepository;
+    UserMetricRepository userMetricRepository;
 
     public LoginResponse login(String email, String password) {
         // Validate input
@@ -32,12 +32,12 @@ public class AuthService {
         User user = userRepository.findByEmailAndPassword(email, password)
                 .orElseThrow(AuthenticationException::invalidCredentials);
 
-        Agent agent = null;
+        UserMetric userMetric = null;
 
         if("AGENT".equalsIgnoreCase(user.getRole().getName())){
-            agent = agentRepository.findByUserId(user.getId()).orElse(null);
+            userMetric = userMetricRepository.findByUserId(user.getId()).orElse(null);
         }
-        return new LoginResponse(user, agent);
+        return new LoginResponse(user, userMetric);
     }
 
 }
