@@ -12,7 +12,7 @@ public interface AgentMapper {
     @Mapping(target = "status", constant = "offline")
     @Mapping(target = "rating", constant = "0.0")
     @Mapping(target = "totalCalls", constant = "0")
-    @Mapping(target = "totalCallTime", expression = "java(java.time.Duration.ZERO)") // OK
+    @Mapping(target = "totalCallTime", constant = "0L") // OK
     @Mapping(target = "user", source = "user")
     Agent toEntity(User user);
 

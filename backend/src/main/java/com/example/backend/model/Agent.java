@@ -1,6 +1,7 @@
 package com.example.backend.model;
 
 import com.example.backend.converter.DurationToIntervalConverter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -31,10 +32,10 @@ public class Agent {
     private Integer totalCalls = 0;
 
     @Column(name = "total_call_time", nullable = false)
-    @Convert(converter = DurationToIntervalConverter.class)
-    private Duration totalCallTime = Duration.ZERO;
+    private Long totalCallTime = 0L;
 
     @OneToOne
+    @JsonIgnore
     @JoinColumn(name = "user_id", nullable = false, foreignKey = @ForeignKey(name = "fk_agents_user"))
     private User user;
 }
