@@ -26,11 +26,11 @@ export const Login = () => {
 
       console.log("Login response:", response.data);
 
-      // Lấy thông tin user từ response
-      const user = response.data.user;
+      // Lấy thông tin user và agent từ response
+      const { user, agent } = response.data;
 
-      // Lưu user vào context
-      login(user);
+      // Lưu toàn bộ data vào context
+      login({ user, agent });
 
       if (user.role.name === "USER") {
         navigate("/");

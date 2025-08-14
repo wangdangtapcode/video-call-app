@@ -11,6 +11,7 @@ const USER_ACTIONS = {
 // Initial state
 const initialState = {
   user: null,
+  agent: null, // Thông tin agent (nếu user là agent)
   isLoading: true, // Loading khi app khởi động
   isInitialized: false // Đã khởi tạo xong chưa
 };
@@ -21,7 +22,8 @@ const userReducer = (state, action) => {
     case USER_ACTIONS.LOGIN:
       return {
         ...state,
-        user: action.payload,
+        user: action.payload.user,
+        agent: action.payload.agent || null,
         isLoading: false,
         isInitialized: true
       };
@@ -30,6 +32,7 @@ const userReducer = (state, action) => {
       return {
         ...state,
         user: null,
+        agent: null,
         isLoading: false,
         isInitialized: true
       };
@@ -63,16 +66,16 @@ export const UserProvider = ({ children }) => {
   useEffect(() => {
     const initializeUser = async () => {
       try {
-        const savedUser = localStorage.getItem('user');
-        if (savedUser) {
-          const user = JSON.parse(savedUser);
-          dispatch({ type: USER_ACTIONS.LOGIN, payload: user });
+        const savedUserData = localStorage.getItem('userData');
+        if (savedUserData) {
+          const userData = JSON.parse(savedUserData);
+          dispatch({ type: USER_ACTIONS.LOGIN, payload: userData });
         } else {
           dispatch({ type: USER_ACTIONS.INIT_COMPLETE });
         }
       } catch (error) {
         console.error('Error parsing saved user data:', error);
-        localStorage.removeItem('user');
+        localStorage.removeItem('userData');
         dispatch({ type: USER_ACTIONS.INIT_COMPLETE });
       }
     };
@@ -80,14 +83,18 @@ export const UserProvider = ({ children }) => {
     initializeUser();
   }, []);
 
-  // Save user to localStorage whenever user changes
+  // Save user data to localStorage whenever user or agent changes
   useEffect(() => {
     if (state.user) {
-      localStorage.setItem('user', JSON.stringify(state.user));
+      const userData = {
+        user: state.user,
+        agent: state.agent
+      };
+      localStorage.setItem('userData', JSON.stringify(userData));
     } else {
-      localStorage.removeItem('user');
+      localStorage.removeItem('userData');
     }
-  }, [state.user]);
+  }, [state.user, state.agent]);
 
   // Action functions
   const login = (userData) => {
@@ -96,15 +103,17 @@ export const UserProvider = ({ children }) => {
 
   const logout = () => {
     dispatch({ type: USER_ACTIONS.LOGOUT });
-    localStorage.removeItem('user');
+    localStorage.removeItem('userData');
   };
 
   const value = {
     // State
     user: state.user,
+    agent: state.agent,
     isLoading: state.isLoading,
     isInitialized: state.isInitialized,
     isAuthenticated: !!state.user,
+    isAgent: !!state.agent,
     // Actions
     login,
     logout,

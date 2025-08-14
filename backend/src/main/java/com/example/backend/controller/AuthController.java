@@ -1,5 +1,7 @@
 package com.example.backend.controller;
 
+import com.example.backend.dto.request.LoginRequest;
+import com.example.backend.dto.response.LoginResponse;
 import com.example.backend.model.User;
 import com.example.backend.service.AuthService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,13 +19,9 @@ public class AuthController {
     AuthService authService;
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody User user) {
-        User authenticatedUser = authService.login(user.getEmail(), user.getPassword());
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("message", "Login successful");
-        response.put("user", authenticatedUser);
-        return ResponseEntity.ok(response);
+    public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
+        LoginResponse loginResponse = authService.login(loginRequest.getEmail(), loginRequest.getPassword());
+        return ResponseEntity.ok(loginResponse);
     }
 
 

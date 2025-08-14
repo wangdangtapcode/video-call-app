@@ -29,8 +29,8 @@ VALUES
 
 INSERT INTO agents (status, rating, total_calls, total_call_time, user_id)
 VALUES
-('offline', 0.00, 0, '0 seconds', 2),
-('offline', 0.00, 0, '0 seconds', 3);
+('offline', 0.00, 0, 0, 2),
+('offline', 0.00, 0, 0, 3);
 
 
 
