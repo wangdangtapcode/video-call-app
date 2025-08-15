@@ -32,6 +32,14 @@ export default function AdminUser() {
     }
   };
 
+  const handleDeleteUser = async (userId) => {
+    try {
+        await axios.delete(`http://localhost:8081/api/user/${userId}`);
+        fetchUsers();
+    } catch (err) {
+        console.error(err);
+    }
+} 
   return (
     <div className="p-4">
       <div className="flex justify-between items-center mb-4">
@@ -69,7 +77,7 @@ export default function AdminUser() {
                     Edit
                 </button>
                 <button
-                    onClick={() => handleDelete(u.id)}
+                    onClick={() => handleDeleteUser(u.id)}
                     className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600"
                 >
                     Delete

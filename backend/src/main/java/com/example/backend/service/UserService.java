@@ -36,7 +36,7 @@ public class UserService {
     }
 
     public List<UserResponse> getAllUser(){
-        List<User> listUser = userRepository.findAll();
+        List<User> listUser = userRepository.findAllByStatus("active");
         return listUser.stream()
                 .map(userMapper::toResponse)
                 .toList();
