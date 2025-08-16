@@ -36,6 +36,8 @@ export const Login = () => {
         navigate("/");
       } else if (user.role.name === "AGENT") {
         navigate("/agent");
+      } else if (user.role.name === "ADMIN") {
+        navigate("/admin");
       }
     } catch (error) {
       console.error("Login error:", error);

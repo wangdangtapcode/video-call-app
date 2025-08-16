@@ -5,8 +5,10 @@ import { LayoutDefault } from "../components/Layout/LayoutDefault";
 import { UserDashboard } from "../pages/user/UserDashboard";
 import { AgentDashboard } from "../pages/agent/AgentDashboard";
 import { AdminDashboard } from "../pages/admin/AdminDashboard";
-import { AdminLayout } from "../components/Layout/AdminLayout";
 import AdminUser from "../pages/admin/AdminUser";
+import AdminLayout from "../layouts/AdminLayout";
+
+
 export const Routers = () => {
   return (
     <BrowserRouter>

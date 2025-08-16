@@ -22,10 +22,16 @@ public class UserController {
     }
 
     @GetMapping
-    public ResponseEntity<List<UserResponse>> getAllUser(){
-        return ResponseEntity.ok(userService.getAllUser());
+    public ResponseEntity<List<UserResponse>> getAllUser(
+            @RequestParam(required = false) String q) { // query parameter tùy chọn
+        List<UserResponse> users;
+        if (q == null || q.isEmpty()) {
+            users = userService.getAllUser(); // trả về tất cả user
+        } else {
+            users = userService.searchUser(q); // tìm kiếm user theo tên/email
+        }
+        return ResponseEntity.ok(users);
     }
-
     @GetMapping("/{id}")
     public ResponseEntity<UserResponse> getUserById(@PathVariable Long id){
         return ResponseEntity.ok(userService.getUserById(id));

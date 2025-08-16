@@ -42,6 +42,13 @@ public class UserService {
                 .toList();
     }
 
+    public List<UserResponse> searchUser(String keyword){
+        List<User> listUser = userRepository.findByFullNameContainingIgnoreCase(keyword);
+        return listUser.stream()
+                .map(userMapper::toResponse)
+                .toList();
+    }
+
     public UserResponse getUserById(Long id){
         User user = userRepository.findById(id)
                 .orElseThrow(() -> BusinessException.userNotFound(id));
