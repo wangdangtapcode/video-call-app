@@ -1,49 +1,27 @@
 import { useUser } from "../../context/UserContext";
 import { useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { useAgentPresence } from "../../hooks/useAgentPresence";
+import { WebSocketStatus } from "../../components/WebSocketStatus";
 
 export const AgentDashboard = () => {
     const { user, logout, isLoading, isInitialized, isAuthenticated } = useUser();
+    const {notifications,pendingRequests,acceptRequest,rejectRequest,clearNotification} = useSupportRequestNotifications();
+
     const navigate = useNavigate();
-    const [agentStatus, setAgentStatus] = useState('online');
-    const [activeRequests, setActiveRequests] = useState([]);
+    const { 
+        agentStatus, 
+        updateAgentStatus, 
+        isConnected,
+    } = useAgentPresence();
+    
     const [stats, setStats] = useState({
         totalRequests: 24,
         completedToday: 8,
         avgResponseTime: '2.5 phút',
         rating: 4.8
     });
-
-    // Mock support requests data
-    const supportRequests = [
-        {
-            id: 1,
-            user: 'Nguyễn Văn A',
-            type: 'Kỹ thuật',
-            priority: 'high',
-            message: 'Không thể kết nối video call',
-            time: '2 phút trước',
-            status: 'waiting'
-        },
-        {
-            id: 2,
-            user: 'Trần Thị B',
-            type: 'Tài khoản',
-            priority: 'medium',
-            message: 'Quên mật khẩu đăng nhập',
-            time: '5 phút trước',
-            status: 'in-progress'
-        },
-        {
-            id: 3,
-            user: 'Lê Văn C',
-            type: 'Thanh toán',
-            priority: 'low',
-            message: 'Hỗ trợ nâng cấp tài khoản',
-            time: '10 phút trước',
-            status: 'waiting'
-        }
-    ];
+    
 
     // Redirect to login if not authenticated (only after initialization)
     useEffect(() => {
@@ -79,10 +57,13 @@ export const AgentDashboard = () => {
         return null;
     }
 
-    const handleStatusChange = (newStatus) => {
-        setAgentStatus(newStatus);
-        // TODO: Update status on backend
-        console.log('Agent status changed to:', newStatus);
+    const handleStatusChange = async (newStatus) => {
+        console.log('Agent status changing to:', newStatus);
+        const success = await updateAgentStatus(newStatus);
+        if (!success) {
+            console.error('Failed to update agent status');
+            // Có thể hiển thị notification lỗi ở đây
+        }
     };
 
     const handleAcceptRequest = (requestId) => {
@@ -95,34 +76,41 @@ export const AgentDashboard = () => {
         console.log('Joining video call for request:', requestId);
     };
 
+
+    // const formatLastSeen = (timestamp) => {
+    //     if (!timestamp) return 'Vừa online';
+    //     const now = new Date();
+    //     const lastSeen = new Date(timestamp);
+    //     const diffMinutes = Math.floor((now - lastSeen) / (1000 * 60));
+        
+    //     if (diffMinutes < 1) return 'Vừa online';
+    //     if (diffMinutes < 60) return `${diffMinutes} phút trước`;
+        
+    //     const diffHours = Math.floor(diffMinutes / 60);
+    //     if (diffHours < 24) return `${diffHours} giờ trước`;
+        
+    //     const diffDays = Math.floor(diffHours / 24);
+    //     return `${diffDays} ngày trước`;
+    // };
+
     const getStatusColor = (status) => {
-        switch (status) {
-            case 'online': return 'bg-green-500';
-            case 'busy': return 'bg-red-500';
-            case 'away': return 'bg-yellow-500';
-            case 'offline': return 'bg-gray-500';
+        switch (status?.toUpperCase()) {
+            case 'ONLINE': return 'bg-green-500';
+            case 'BUSY': return 'bg-red-500';
+            case 'OFFLINE': return 'bg-gray-500';
             default: return 'bg-gray-500';
         }
     };
 
     const getStatusText = (status) => {
-        switch (status) {
-            case 'online': return 'Trực tuyến';
-            case 'busy': return 'Bận';
-            case 'away': return 'Vắng mặt';
-            case 'offline': return 'Ngoại tuyến';
+        switch (status?.toUpperCase()) {
+            case 'ONLINE': return 'Trực tuyến';
+            case 'BUSY': return 'Bận';
+            case 'OFFLINE': return 'Ngoại tuyến';
             default: return 'Không xác định';
         }
     };
 
-    const getPriorityColor = (priority) => {
-        switch (priority) {
-            case 'high': return 'bg-red-100 text-red-800 border-red-200';
-            case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-            case 'low': return 'bg-green-100 text-green-800 border-green-200';
-            default: return 'bg-gray-100 text-gray-800 border-gray-200';
-        }
-    };
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -144,17 +132,20 @@ export const AgentDashboard = () => {
                                 <span className="text-sm font-medium text-gray-700">Trạng thái:</span>
                                 <div className={`w-3 h-3 rounded-full ${getStatusColor(agentStatus)}`}></div>
                                 <span className="text-sm font-medium text-gray-900">{getStatusText(agentStatus)}</span>
+                                {!isConnected && (
+                                    <span className="text-xs text-red-500">(Mất kết nối)</span>
+                                )}
                             </div>
                             
                             <select
                                 value={agentStatus}
                                 onChange={(e) => handleStatusChange(e.target.value)}
-                                className="bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                disabled={!isConnected}
+                                className="bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                <option value="online">Trực tuyến</option>
-                                <option value="busy">Bận</option>
-                                <option value="away">Vắng mặt</option>
-                                <option value="offline">Ngoại tuyến</option>
+                                <option value="ONLINE">Trực tuyến</option>
+                                <option value="BUSY">Bận</option>
+                                <option value="OFFLINE">Ngoại tuyến</option>
                             </select>
                         </div>
                     </div>
@@ -219,61 +210,11 @@ export const AgentDashboard = () => {
                     </div>
                 </div>
 
-                {/* Support Requests */}
-                <div className="bg-white rounded-xl shadow-sm">
-                    <div className="p-6 border-b border-gray-200">
-                        <div className="flex items-center justify-between">
-                            <h2 className="text-xl font-semibold text-gray-900">Yêu cầu hỗ trợ</h2>
-                            <span className="bg-blue-100 text-blue-800 text-sm font-medium px-2.5 py-0.5 rounded-full">
-                                {supportRequests.length} yêu cầu
-                            </span>
-                        </div>
-                    </div>
-
-                    <div className="divide-y divide-gray-200">
-                        {supportRequests.map((request) => (
-                            <div key={request.id} className="p-6 hover:bg-gray-50 transition-colors">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex-1">
-                                        <div className="flex items-center space-x-3 mb-2">
-                                            <h3 className="text-lg font-medium text-gray-900">{request.user}</h3>
-                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getPriorityColor(request.priority)}`}>
-                                                {request.priority === 'high' ? 'Cao' : request.priority === 'medium' ? 'Trung bình' : 'Thấp'}
-                                            </span>
-                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                                {request.type}
-                                            </span>
-                                        </div>
-                                        <p className="text-gray-600 mb-2">{request.message}</p>
-                                        <p className="text-sm text-gray-500">{request.time}</p>
-                                    </div>
-                                    
-                                    <div className="flex items-center space-x-3 ml-4">
-                                        {request.status === 'waiting' && (
-                                            <button
-                                                onClick={() => handleAcceptRequest(request.id)}
-                                                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                                            >
-                                                Chấp nhận
-                                            </button>
-                                        )}
-                                        <button
-                                            onClick={() => handleJoinVideoCall(request.id)}
-                                            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center space-x-2 transition-colors"
-                                        >
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                            </svg>
-                                            <span>Video Call</span>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
 
             </div>
+            
+            {/* WebSocket Status Indicator */}
+            <WebSocketStatus />
         </div>
     );
 };

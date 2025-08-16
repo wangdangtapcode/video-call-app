@@ -14,4 +14,11 @@ import lombok.Setter;
 public class LoginResponse {
     private User user;
     private UserMetric userMetric;
+    private String token;
+
+    // Constructor for backward compatibility
+    public LoginResponse(User user, UserMetric userMetric) {
+        this.user = user;
+        this.userMetric = userMetric;
+    }
 }

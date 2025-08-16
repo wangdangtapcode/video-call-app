@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
-import Stomp from 'stompjs';
 
 const WebSocketContext = createContext();
 
@@ -22,26 +22,33 @@ export const WebSocketProvider = ({ children }) => {
   const WEBSOCKET_URL = 'http://localhost:8081/ws';
   const RECONNECT_DELAY = 3000; // 3 seconds
 
-  const connect = () => {
+  const connect = (token = null) => {
     if (stompClientRef.current && stompClientRef.current.connected) {
       console.log('WebSocket already connected');
       return;
     }
 
     setConnectionStatus('connecting');
-    console.log('Connecting to WebSocket...');
-
+    console.log('Connecting to WebSocket...', token ? 'with JWT token' : 'without token');
+    
     try {
-      const socket = new SockJS(WEBSOCKET_URL);
-      const client = Stomp.over(socket);
-      
-      // Disable debug logs in production
-      client.debug = process.env.NODE_ENV === 'development' ? console.log : () => {};
+      // Include JWT token in connection URL for authentication
+      const connectionUrl = token ? `${WEBSOCKET_URL}?token=${encodeURIComponent(token)}` : WEBSOCKET_URL;
 
-      client.connect(
-        {}, // headers
-        () => {
-          console.log('WebSocket connected successfully');
+      // Create new STOMP client using @stomp/stompjs
+      const client = new Client({
+        webSocketFactory: () => new SockJS(connectionUrl),
+        debug: (str) => console.log('STOMP Debug:', str),
+        reconnectDelay: 5000,
+        heartbeatIncoming: 10000, // Match backend config
+        heartbeatOutgoing: 10000,
+        
+        connectHeaders: token ? {
+          'Authorization': `Bearer ${token}`
+        } : {},
+        
+        onConnect: (frame) => {
+          console.log('✅ WebSocket connected successfully! Frame:', frame);
           setIsConnected(true);
           setConnectionStatus('connected');
           stompClientRef.current = client;
@@ -49,23 +56,36 @@ export const WebSocketProvider = ({ children }) => {
           // Re-subscribe to all topics after reconnection
           resubscribeAll();
         },
-        (error) => {
-          console.error('WebSocket connection error:', error);
+        
+        onDisconnect: (frame) => {
+          console.log('❌ WebSocket disconnected. Frame:', frame);
+          setIsConnected(false);
+          setConnectionStatus('disconnected');
+        },
+        
+        onStompError: (frame) => {
+          console.error('❌ STOMP protocol error:', frame);
           setIsConnected(false);
           setConnectionStatus('error');
-          
-          // Auto-reconnect after delay
+          scheduleReconnect();
+        },
+
+        onWebSocketError: (event) => {
+          console.error('❌ WebSocket error:', event);
+          setIsConnected(false);
+          setConnectionStatus('error');
+        },
+
+        onWebSocketClose: (event) => {
+          console.log('WebSocket connection closed. Code:', event.code, 'Reason:', event.reason);
+          setIsConnected(false);
+          setConnectionStatus('disconnected');
           scheduleReconnect();
         }
-      );
+      });
 
-      // Handle connection lost
-      socket.onclose = () => {
-        console.log('WebSocket connection lost');
-        setIsConnected(false);
-        setConnectionStatus('disconnected');
-        scheduleReconnect();
-      };
+      // Activate the client
+      client.activate();
 
     } catch (error) {
       console.error('Failed to create WebSocket connection:', error);
@@ -80,10 +100,8 @@ export const WebSocketProvider = ({ children }) => {
       reconnectTimeoutRef.current = null;
     }
 
-    if (stompClientRef.current) {
-      stompClientRef.current.disconnect(() => {
-        console.log('WebSocket disconnected');
-      });
+    if (stompClientRef.current && stompClientRef.current.connected) {
+      stompClientRef.current.deactivate();
       stompClientRef.current = null;
     }
 
@@ -99,7 +117,21 @@ export const WebSocketProvider = ({ children }) => {
 
     reconnectTimeoutRef.current = setTimeout(() => {
       console.log('Attempting to reconnect...');
-      connect();
+      // Get token from localStorage for reconnection
+      const userData = sessionStorage.getItem('userData');
+      if (userData) {
+        try {
+          console.log('userData', userData);
+          const parsed = JSON.parse(userData);
+          connect(parsed.token);
+        } catch (e) {
+          console.error('Error parsing userData for reconnection:', e);
+          // connect(); // Fallback to no token
+        }
+      } else {
+        console.error('No userData found for reconnection');
+        // connect();
+      }
     }, RECONNECT_DELAY);
   };
 
@@ -127,7 +159,10 @@ export const WebSocketProvider = ({ children }) => {
 
     try {
       const message = typeof body === 'string' ? body : JSON.stringify(body);
-      stompClientRef.current.send(destination, {}, message);
+      stompClientRef.current.publish({
+        destination,
+        body: message
+      });
       return true;
     } catch (error) {
       console.error('Error sending WebSocket message:', error);
@@ -171,29 +206,36 @@ export const WebSocketProvider = ({ children }) => {
     subscriptionsRef.current.delete(topic);
   };
 
-  // Connect when component mounts
-  useEffect(() => {
-    connect();
-
-    // Cleanup on unmount
-    return () => {
-      disconnect();
-    };
-  }, []);
+  // Auto-connect removed - will be triggered by authentication
+  // useEffect(() => {
+  //   connect();
+  //   return () => {
+  //     disconnect();
+  //   };
+  // }, []);
 
   // Handle page visibility change (reconnect when page becomes visible)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && !isConnected) {
-        connect();
-      }
-    };
+  // useEffect(() => {
+  //   const handleVisibilityChange = () => {
+  //     if (document.visibilityState === 'visible' && !isConnected) {
+  //       // Get token from localStorage for reconnection
+  //       const userData = localStorage.getItem('userData');
+  //       if (userData) {
+  //         try {
+  //           const parsed = JSON.parse(userData);
+  //           connect(parsed.token);
+  //         } catch (e) {
+  //           console.error('Error parsing userData for reconnection:', e);
+  //         }
+  //       }
+  //     }
+  //   };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [isConnected]);
+  //   document.addEventListener('visibilitychange', handleVisibilityChange);
+  //   return () => {
+  //     document.removeEventListener('visibilitychange', handleVisibilityChange);
+  //   };
+  // }, [isConnected]);
 
   const value = {
     isConnected,
