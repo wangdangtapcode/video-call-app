@@ -34,4 +34,8 @@ public class BusinessException extends BaseException {
     public static BusinessException invalidOperation(String operation) {
         return new BusinessException("Invalid operation: " + operation);
     }
+
+    public static BusinessException userNotFound(Long id){
+        return new BusinessException("User with id: "+ id+ " not exists!");
+    }
 }
