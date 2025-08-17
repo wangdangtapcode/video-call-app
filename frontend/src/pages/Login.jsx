@@ -37,7 +37,7 @@ export const Login = () => {
       
       // Kết nối WebSocket cho tất cả users (để nhận support requests và notifications)
       console.log(`${user.role.name} logged in, connecting WebSocket...`);
-      connect(token);
+      connect(token, user);
 
       // Navigation based on role
       if (user.role.name === "USER") {

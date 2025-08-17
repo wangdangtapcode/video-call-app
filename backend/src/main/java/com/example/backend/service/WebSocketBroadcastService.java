@@ -69,6 +69,7 @@ public class WebSocketBroadcastService {
                 "/topic/support-updates",
                 notification);
 
+        System.out.println("notification: " + notification);
         System.out.println("Sent WebSocket message to user " + userId + ": " + type);
     }
 

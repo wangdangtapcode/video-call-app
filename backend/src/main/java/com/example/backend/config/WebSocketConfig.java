@@ -1,6 +1,6 @@
 package com.example.backend.config;
 
-import com.example.backend.websocket.StompChannelInterceptor;
+//import com.example.backend.websocket.StompChannelInterceptor;
 import com.example.backend.websocket.UserHandshakeInterceptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
@@ -21,15 +21,12 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     private UserHandshakeInterceptor userHandshakeInterceptor;
 
     @Autowired
-    private StompChannelInterceptor stompChannelInterceptor;
-
-    @Autowired
     private TaskScheduler taskScheduler;
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
         // Enhanced config cho @stomp/stompjs compatibility
-        config.enableSimpleBroker("/topic", "/queue")
+        config.enableSimpleBroker("/topic", "/queue","/user")
                 .setHeartbeatValue(new long[] { 10000, 10000 }) // 10s heartbeat
                 .setTaskScheduler(taskScheduler);
 
@@ -57,8 +54,5 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 .addInterceptors(userHandshakeInterceptor);
     }
 
-//    @Override
-//    public void configureClientInboundChannel(ChannelRegistration registration) {
-//        registration.interceptors(stompChannelInterceptor);
-//    }
+
 }

@@ -228,64 +228,59 @@ public class SupportController {
      * Agent respond to support request (accept/reject)
      * Body: { "action": "accept" } hoặc { "action": "reject", "reason": "..." }
      */
-    // @PostMapping("/requests/{requestId}/respond")
-    // public ResponseEntity<?> respondToRequest(
-    // @PathVariable Long requestId,
-    // @RequestBody Map<String, Object> requestBody,
-    // @RequestHeader(value = "Authorization", required = false) String authHeader)
-    // {
-    //
-    // try {
-    // // Extract và validate JWT token
-    // String token = jwtService.extractTokenFromHeader(authHeader);
-    // if (token == null || jwtService.isTokenExpired(token)) {
-    // Map<String, String> response = new HashMap<>();
-    // response.put("message", "Invalid or expired token");
-    // return ResponseEntity.badRequest().body(response);
-    // }
-    //
-    // Long agentId = jwtService.extractUserId(token);
-    // String userRole = jwtService.extractRole(token);
-    //
-    // // Validate agent role
-    // if (!"AGENT".equalsIgnoreCase(userRole)) {
-    // Map<String, String> response = new HashMap<>();
-    // response.put("message", "Only agents can respond to support requests");
-    // return ResponseEntity.badRequest().body(response);
-    // }
-    //
-    // // Extract action
-    // String action = (String) requestBody.get("action");
-    // String reason = (String) requestBody.get("reason");
-    //
-    // // Validate action
-    // if (!"accept".equals(action) && !"reject".equals(action)) {
-    // Map<String, String> response = new HashMap<>();
-    // response.put("message", "Invalid action. Must be 'accept' or 'reject'");
-    // return ResponseEntity.badRequest().body(response);
-    // }
-    //
-    // // Process agent response
-    // boolean isAccepted = "accept".equals(action);
-    // SupportRequest updatedRequest =
-    // supportRequestService.processAgentResponse(requestId, agentId, isAccepted,
-    // reason);
-    //
-    // Map<String, Object> response = new HashMap<>();
-    // response.put("requestId", requestId);
-    // response.put("action", action);
-    // response.put("status", updatedRequest.getStatus().toString());
-    // response.put("message", isAccepted ? "Đã chấp nhận yêu cầu hỗ trợ" : "Đã từ
-    // chối yêu cầu hỗ trợ");
-    // response.put("timestamp", System.currentTimeMillis());
-    //
-    // return ResponseEntity.ok(response);
-    //
-    // } catch (Exception e) {
-    // Map<String, String> response = new HashMap<>();
-    // response.put("message", "Error processing agent response: " +
-    // e.getMessage());
-    // return ResponseEntity.badRequest().body(response);
-    // }
-    // }
+    @PostMapping("/requests/{requestId}/respond")
+    public ResponseEntity<?> respondToRequest(
+            @PathVariable Long requestId,
+            @RequestBody Map<String, Object> requestBody,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        try {
+            // Extract và validate JWT token
+            String token = jwtService.extractTokenFromHeader(authHeader);
+            if (token == null || jwtService.isTokenExpired(token)) {
+                Map<String, String> response = new HashMap<>();
+                response.put("message", "Invalid or expired token");
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            Long agentId = jwtService.extractUserId(token);
+            String userRole = jwtService.extractRole(token);
+
+            // Validate agent role
+            if (!"AGENT".equalsIgnoreCase(userRole)) {
+                Map<String, String> response = new HashMap<>();
+                response.put("message", "Only agents can respond to support requests");
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            // Extract action
+            String action = (String) requestBody.get("action");
+
+            // Validate action
+            if (!"accept".equals(action) && !"reject".equals(action)) {
+                Map<String, String> response = new HashMap<>();
+                response.put("message", "Invalid action. Must be 'accept' or 'reject'");
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            // Process agent response
+            boolean isAccepted = "accept".equals(action);
+            SupportRequest updatedRequest = supportRequestService.processAgentResponse(requestId, agentId, isAccepted);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("requestId", requestId);
+            response.put("action", action);
+            response.put("status", updatedRequest.getStatus().toString());
+            response.put("message", isAccepted ? "Đã chấp nhận yêu cầu hỗ trợ" : "Đã từ chối yêu cầu hỗ trợ");
+            response.put("timestamp", System.currentTimeMillis());
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "Error processing agent response: " +
+                    e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
 }

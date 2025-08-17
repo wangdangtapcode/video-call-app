@@ -256,77 +256,71 @@ public class SupportRequestService {
     /**
      * Xử lý agent response (accept/reject) cho support request
      */
-    // public SupportRequest processAgentResponse(Long requestId, Long agentId,
-    // boolean isAccepted, String reason) {
-    // SupportRequest request = supportRequestRepository.findById(requestId)
-    // .orElseThrow(() -> new RuntimeException("Support request not found"));
-    //
-    // User agent = userRepository.findById(agentId)
-    // .orElseThrow(() -> new RuntimeException("Agent not found"));
-    //
-    // // Verify rằng request được assign cho agent này
-    // if (request.getAgent() == null ||
-    // !request.getAgent().getId().equals(agentId)) {
-    // throw new RuntimeException("Agent is not assigned to this request");
-    // }
-    //
-    // // Chỉ có thể respond nếu request đang ở trạng thái MATCHED
-    // if (request.getStatus() != SupportRequestStatus.MATCHED) {
-    // throw new RuntimeException("Request is not in a state that can be responded
-    // to");
-    // }
-    //
-    // if (isAccepted) {
-    // // Agent chấp nhận
-    // request.setStatus(SupportRequestStatus.COMPLETED); // Hoặc có thể tạo status
-    // mới như ACCEPTED
-    // request.setCompletedAt(LocalDateTime.now());
-    //
-    // // Notify user that agent accepted
-    // notificationService.notifyAgentAccepted(request);
-    //
-    // // Broadcast to both user and agent
-    // webSocketBroadcastService.broadcastSupportUpdate(
-    // request.getUser().getId(),
-    // "AGENT_ACCEPTED",
-    // "Agent " + agent.getFullName() + " đã chấp nhận hỗ trợ bạn! Đang chuyển đến
-    // video call...");
-    //
-    // webSocketBroadcastService.broadcastSupportUpdate(
-    // agent.getId(),
-    // "REQUEST_ACCEPTED",
-    // "Bạn đã chấp nhận hỗ trợ user " + request.getUser().getFullName()
-    // + ". Đang chuyển đến video call...");
-    //
-    // } else {
-    // // Agent từ chối
-    // request.setStatus(SupportRequestStatus.TIMEOUT); // Hoặc có thể tạo status
-    // REJECTED
-    // request.setTimeoutAt(LocalDateTime.now());
-    //
-    // // Notify user that agent rejected
-    // notificationService.notifyAgentRejected(request, reason);
-    //
-    // // Broadcast to user
-    // webSocketBroadcastService.broadcastSupportUpdate(
-    // request.getUser().getId(),
-    // "AGENT_REJECTED",
-    // "Agent " + agent.getFullName() + " đã từ chối yêu cầu hỗ trợ." +
-    // (reason != null ? " Lý do: " + reason : "") + " Hệ thống sẽ tìm agent khác
-    // cho bạn.");
-    //
-    // // Broadcast to agent
-    // webSocketBroadcastService.broadcastSupportUpdate(
-    // agent.getId(),
-    // "REQUEST_REJECTED",
-    // "Bạn đã từ chối yêu cầu hỗ trợ từ user " + request.getUser().getFullName());
-    //
-    // // TODO: Có thể trigger lại matching process để tìm agent khác
-    // // processMatching(request.getId());
-    // }
-    //
-    // return supportRequestRepository.save(request);
-    // }
+    public SupportRequest processAgentResponse(Long requestId, Long agentId,
+            boolean isAccepted) {
+        SupportRequest request = supportRequestRepository.findById(requestId)
+                .orElseThrow(() -> new RuntimeException("Support request not found"));
+
+        User agent = userRepository.findById(agentId)
+                .orElseThrow(() -> new RuntimeException("Agent not found"));
+
+        // Verify rằng request được assign cho agent này
+        if (request.getAgent() == null ||
+                !request.getAgent().getId().equals(agentId)) {
+            throw new RuntimeException("Agent is not assigned to this request");
+        }
+
+        // Chỉ có thể respond nếu request đang ở trạng thái MATCHED
+        if (request.getStatus() != SupportRequestStatus.MATCHED) {
+            throw new RuntimeException("Request is not in a state that can be responded to");
+        }
+
+        if (isAccepted) {
+            // Agent chấp nhận
+            request.setStatus(SupportRequestStatus.ACCEPT); // Hoặc có thể tạo status mới như ACCEPTED
+            request.setCompletedAt(LocalDateTime.now());
+
+            // Notify user that agent accepted
+            notificationService.notifyAgentAccepted(request);
+
+            // Broadcast to both user and agent
+//            webSocketBroadcastService.broadcastSupportUpdate(
+//                    request.getUser().getId(),
+//                    "AGENT_ACCEPTED",
+//                    "Agent " + agent.getFullName() + " đã chấp nhận hỗ trợ bạn! Đang chuyển đến video call...");
+//
+//            webSocketBroadcastService.broadcastSupportUpdate(
+//                    agent.getId(),
+//                    "REQUEST_ACCEPTED",
+//                    "Bạn đã chấp nhận hỗ trợ user " + request.getUser().getFullName()
+//                            + ". Đang chuyển đến video call...");
+
+        } else {
+            // Agent từ chối
+            request.setStatus(SupportRequestStatus.REJECT); // Hoặc có thể tạo status REJECTED
+            request.setTimeoutAt(LocalDateTime.now());
+
+            // Notify user that agent rejected
+            notificationService.notifyAgentRejected(request);
+
+            // // Broadcast to user
+            // webSocketBroadcastService.broadcastSupportUpdate(
+            // request.getUser().getId(),
+            // "AGENT_REJECTED",
+            // "Agent " + agent.getFullName() + " đã từ chối yêu cầu hỗ trợ.");
+
+            // // Broadcast to agent
+            // webSocketBroadcastService.broadcastSupportUpdate(
+            // agent.getId(),
+            // "REQUEST_REJECTED",
+            // "Bạn đã từ chối yêu cầu hỗ trợ từ user " + request.getUser().getFullName());
+
+            // TODO: Có thể trigger lại matching process để tìm agent khác
+            // processMatching(request.getId());
+        }
+
+        return supportRequestRepository.save(request);
+    }
 
     /**
      * Xử lý timeout requests (chạy định kỳ)

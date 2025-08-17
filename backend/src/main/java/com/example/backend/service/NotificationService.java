@@ -35,7 +35,6 @@ public class NotificationService {
         }
 
         public void notifyUserChooseAgent(SupportRequest request) {
-
                 // Notify agent
                 webSocketBroadcastService.broadcastToUser(
                                 request.getAgent().getId(),
@@ -96,12 +95,9 @@ public class NotificationService {
         /**
          * Notify user khi agent từ chối yêu cầu
          */
-        public void notifyAgentRejected(SupportRequest request, String reason) {
+        public void notifyAgentRejected(SupportRequest request) {
                 String message = "Agent " + request.getAgent().getFullName() + " đã từ chối yêu cầu hỗ trợ.";
-                if (reason != null && !reason.trim().isEmpty()) {
-                        message += " Lý do: " + reason;
-                }
-                message += " Hệ thống sẽ tìm agent khác cho bạn.";
+ 
 
                 webSocketBroadcastService.broadcastToUser(
                                 request.getUser().getId(),
@@ -109,7 +105,6 @@ public class NotificationService {
                                 message,
                                 request);
 
-                System.out.println("Notified user " + request.getUser().getId() + " that agent rejected the request: "
-                                + reason);
+                System.out.println("Notified user " + request.getUser().getId() + " that agent rejected the request: ");
         }
 }
