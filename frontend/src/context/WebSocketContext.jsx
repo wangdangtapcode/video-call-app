@@ -22,58 +22,63 @@ export const useWebSocket = () => {
 
 export const WebSocketProvider = ({ children }) => {
   const [isConnected, setIsConnected] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState("disconnected"); // 'connecting', 'connected', 'disconnected', 'error'
+  const [connectionStatus, setConnectionStatus] = useState("disconnected");
   const [userRole, setUserRole] = useState(null);
   const [userId, setUserId] = useState(null);
+
   const stompClientRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   const subscriptionsRef = useRef(new Map());
   const roleSubscriptionsRef = useRef(new Map());
+  const connectionAttempts = useRef(0);
+  const isConnectingRef = useRef(false);
 
   const WEBSOCKET_URL = "http://localhost:8081/ws";
-  const RECONNECT_DELAY = 3000; // 3 seconds
+  const RECONNECT_DELAY = 3000;
+  const MAX_RECONNECT_ATTEMPTS = 5;
 
   const getRoleChannels = useCallback((role, userId) => {
-    const baseChannels = [
-      `/user/${userId}/topic/support-updates`, // Private support notifications
-      // `/user/${userId}/topic/notifications`, // Private general notifications
-    ];
+    const baseChannels = [`/user/${userId}/topic/support-updates`];
 
     switch (role) {
       case "USER":
-        return [
-          ...baseChannels,
-          "/topic/agents/status-changes", // Agent online/offline updates
-          // "/topic/user/notifications", // Global user notifications
-          // "/topic/system/announcements", // System announcements
-        ];
-
+        return [...baseChannels, "/topic/agents/status-changes"];
       case "AGENT":
-        return [
-          ...baseChannels,
-          // "/topic/agent/notifications", // Global agent notifications,          // Other agents' status changes
-          // "/topic/support-updates", // Support queue updates
-        ];
-
+        return [...baseChannels];
       case "ADMIN":
-        return [
-          ...baseChannels,
-          // "/topic/admin/notifications", // Admin notifications
-          // "/topic/system/monitoring", // System monitoring
-          // "/topic/agents/status-changes", // All agent status
-          // "/topic/support/analytics", // Support analytics
-        ];
-
+        return [...baseChannels];
       default:
         return baseChannels;
     }
   }, []);
 
-  const connect = (token = null, userData = null) => {
-    if (stompClientRef.current && stompClientRef.current.connected) {
+  const cleanupConnection = useCallback(() => {
+    if (stompClientRef.current) {
+      try {
+        stompClientRef.current.deactivate();
+      } catch (error) {
+        console.warn("Error deactivating STOMP client:", error);
+      }
+      stompClientRef.current = null;
+    }
+    isConnectingRef.current = false;
+  }, []);
+
+  const connect = useCallback((token = null, userData = null) => {
+    // Prevent multiple concurrent connections
+    if (isConnectingRef.current) {
+      console.log("Already connecting, skipping duplicate connection attempt");
+      return;
+    }
+
+    // Cleanup existing connection
+    if (stompClientRef.current?.connected) {
       console.log("WebSocket already connected");
       return;
     }
+
+    isConnectingRef.current = true;
+    cleanupConnection();
 
     if (userData) {
       setUserRole(userData.role.name);
@@ -87,51 +92,46 @@ export const WebSocketProvider = ({ children }) => {
     );
 
     try {
-      // Include JWT token in connection URL for authentication
       const connectionUrl = token
         ? `${WEBSOCKET_URL}?token=${encodeURIComponent(token)}`
         : WEBSOCKET_URL;
 
-      // Create new STOMP client using @stomp/stompjs
       const client = new Client({
         webSocketFactory: () => new SockJS(connectionUrl),
         debug: (str) => console.log("STOMP Debug:", str),
-        reconnectDelay: 5000,
-        heartbeatIncoming: 10000, // Match backend config
+        reconnectDelay: 0, // Disable auto-reconnect, handle manually
+        heartbeatIncoming: 10000,
         heartbeatOutgoing: 10000,
 
-        connectHeaders: token
-          ? {
-              Authorization: `Bearer ${token}`,
-            }
-          : {},
+        connectHeaders: token ? { Authorization: `Bearer ${token}` } : {},
 
         onConnect: (frame) => {
-          console.log("✅ WebSocket connected successfully! Frame:", frame);
+          console.log("✅ WebSocket connected successfully!");
           setIsConnected(true);
           setConnectionStatus("connected");
+          connectionAttempts.current = 0;
+          isConnectingRef.current = false;
           stompClientRef.current = client;
 
           if (userData) {
-            subscribeToRoleChannels(
-              userData.role.name,
-              userData.id
-            );
+            subscribeToRoleChannels(userData.role.name, userData.id);
           }
-          // Re-subscribe to all topics after reconnection
           resubscribeAll();
         },
 
         onDisconnect: (frame) => {
-          console.log("❌ WebSocket disconnected. Frame:", frame);
+          console.log("❌ WebSocket disconnected");
           setIsConnected(false);
           setConnectionStatus("disconnected");
+          isConnectingRef.current = false;
+          scheduleReconnect();
         },
 
         onStompError: (frame) => {
           console.error("❌ STOMP protocol error:", frame);
           setIsConnected(false);
           setConnectionStatus("error");
+          isConnectingRef.current = false;
           scheduleReconnect();
         },
 
@@ -139,6 +139,7 @@ export const WebSocketProvider = ({ children }) => {
           console.error("❌ WebSocket error:", event);
           setIsConnected(false);
           setConnectionStatus("error");
+          isConnectingRef.current = false;
         },
 
         onWebSocketClose: (event) => {
@@ -150,27 +151,69 @@ export const WebSocketProvider = ({ children }) => {
           );
           setIsConnected(false);
           setConnectionStatus("disconnected");
-          scheduleReconnect();
+          isConnectingRef.current = false;
+
+          // Only auto-reconnect for unexpected closes
+          if (event.code !== 1000) {
+            // 1000 = normal closure
+            scheduleReconnect();
+          }
         },
       });
 
-      // Activate the client
       client.activate();
     } catch (error) {
       console.error("Failed to create WebSocket connection:", error);
       setConnectionStatus("error");
+      isConnectingRef.current = false;
       scheduleReconnect();
     }
-  };
+  }, []);
+
+  const scheduleReconnect = useCallback(() => {
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+    }
+
+    if (connectionAttempts.current >= MAX_RECONNECT_ATTEMPTS) {
+      console.error("Max reconnection attempts reached");
+      setConnectionStatus("failed");
+      return;
+    }
+
+    const delay = RECONNECT_DELAY * Math.pow(2, connectionAttempts.current); // Exponential backoff
+    connectionAttempts.current++;
+
+    console.log(
+      `Scheduling reconnection attempt ${connectionAttempts.current} in ${delay}ms`
+    );
+
+    reconnectTimeoutRef.current = setTimeout(() => {
+      const userData = JSON.parse(sessionStorage.getItem("userData") || "{}");
+      if (userData.token && userData.user) {
+        connect(userData.token, userData.user);
+      }
+    }, delay);
+  }, [connect]);
 
   const subscribeToRoleChannels = useCallback(
     (role, userId) => {
-      if (!stompClientRef.current || !stompClientRef.current.connected) {
+      if (!stompClientRef.current?.connected) {
         console.warn(
           "Cannot subscribe to role channels: WebSocket not connected"
         );
         return;
       }
+
+      // Clear existing role subscriptions
+      roleSubscriptionsRef.current.forEach((subscription) => {
+        try {
+          subscription.unsubscribe();
+        } catch (error) {
+          console.warn("Error unsubscribing from role channel:", error);
+        }
+      });
+      roleSubscriptionsRef.current.clear();
 
       const channels = getRoleChannels(role, userId);
       console.log(`Auto-subscribing to ${role} channels:`, channels);
@@ -197,8 +240,6 @@ export const WebSocketProvider = ({ children }) => {
   const handleRoleChannelMessage = useCallback((topic, message) => {
     try {
       const data = JSON.parse(message.body);
-
-      // Emit custom event for role-based messages
       const customEvent = new CustomEvent("roleChannelMessage", {
         detail: {
           topic,
@@ -219,10 +260,9 @@ export const WebSocketProvider = ({ children }) => {
       return null;
     }
 
-    // Store subscription for auto-resubscribe
     subscriptionsRef.current.set(topic, callback);
 
-    if (!stompClientRef.current || !stompClientRef.current.connected) {
+    if (!stompClientRef.current?.connected) {
       console.warn(
         "WebSocket not connected. Subscription will be attempted when connected."
       );
@@ -256,7 +296,7 @@ export const WebSocketProvider = ({ children }) => {
 
   const sendMessage = useCallback(
     (destination, body, targetRole = null, targetUser = null) => {
-      if (!stompClientRef.current || !stompClientRef.current.connected) {
+      if (!stompClientRef.current?.connected) {
         console.warn("WebSocket not connected. Cannot send message.");
         return false;
       }
@@ -281,11 +321,11 @@ export const WebSocketProvider = ({ children }) => {
           body: message,
           headers: {
             "user-role": userRole,
-            "user-id": userId,
+            "user-id": userId?.toString(),
           },
         });
 
-        console.log(`📤 Message sent to ${destination}:`, messageBody);
+        console.log(`📤 Message sent to ${destination}`);
         return true;
       } catch (error) {
         console.error("Error sending WebSocket message:", error);
@@ -295,38 +335,23 @@ export const WebSocketProvider = ({ children }) => {
     [userId, userRole]
   );
 
-  const scheduleReconnect = useCallback(() => {
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-    }
-
-    reconnectTimeoutRef.current = setTimeout(() => {
-      console.log("Attempting to reconnect...");
-      const userData = sessionStorage.getItem("userData");
-      if (userData) {
-        try {
-          const parsed = JSON.parse(userData);
-          connect(parsed.token, parsed.user);
-        } catch (e) {
-          console.error("Error parsing userData for reconnection:", e);
-        }
-      }
-    }, RECONNECT_DELAY);
-  }, [connect]);
-
   const resubscribeAll = useCallback(() => {
     // Re-subscribe manual subscriptions
     subscriptionsRef.current.forEach((callback, topic) => {
-      if (stompClientRef.current && stompClientRef.current.connected) {
-        stompClientRef.current.subscribe(topic, (message) => {
-          try {
-            const data = JSON.parse(message.body);
-            callback(data);
-          } catch (error) {
-            console.error("Error parsing WebSocket message:", error);
-            callback(message.body);
-          }
-        });
+      if (stompClientRef.current?.connected) {
+        try {
+          stompClientRef.current.subscribe(topic, (message) => {
+            try {
+              const data = JSON.parse(message.body);
+              callback(data);
+            } catch (error) {
+              console.error("Error parsing WebSocket message:", error);
+              callback(message.body);
+            }
+          });
+        } catch (error) {
+          console.error(`Error resubscribing to ${topic}:`, error);
+        }
       }
     });
 
@@ -342,10 +367,7 @@ export const WebSocketProvider = ({ children }) => {
       reconnectTimeoutRef.current = null;
     }
 
-    if (stompClientRef.current && stompClientRef.current.connected) {
-      stompClientRef.current.deactivate();
-      stompClientRef.current = null;
-    }
+    cleanupConnection();
 
     setIsConnected(false);
     setConnectionStatus("disconnected");
@@ -353,7 +375,15 @@ export const WebSocketProvider = ({ children }) => {
     setUserId(null);
     subscriptionsRef.current.clear();
     roleSubscriptionsRef.current.clear();
-  }, []);
+    connectionAttempts.current = 0;
+  }, [cleanupConnection]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      disconnect();
+    };
+  }, [disconnect]);
 
   const value = useMemo(
     () => ({
@@ -366,10 +396,6 @@ export const WebSocketProvider = ({ children }) => {
       unsubscribe,
       connect,
       disconnect,
-      // New role-specific methods
-      // sendToRole: (destination, body, targetRole) => sendMessage(destination, body, targetRole),
-      // sendToUser: (destination, body, targetUserId) => sendMessage(destination, body, null, targetUserId),
-      // broadcastToAll: (destination, body) => sendMessage(destination, body, 'ALL')
     }),
     [
       isConnected,
