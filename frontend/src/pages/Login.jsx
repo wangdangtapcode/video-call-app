@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useUser } from "../context/UserContext";
+import { useWebSocket } from "../context/WebSocketContext";
 
 export const Login = () => {
   const [email, setEmail] = useState("");
@@ -9,6 +10,7 @@ export const Login = () => {
   const [error, setError] = useState("");
 
   const { login } = useUser();
+  const { connect } = useWebSocket();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -26,12 +28,18 @@ export const Login = () => {
 
       console.log("Login response:", response.data);
 
-      // Lấy thông tin user và agent từ response
-      const { user, userMetric } = response.data;
+      // Lấy thông tin user, agent và token từ response
+      const { user, userMetric, token } = response.data;
 
       // Lưu toàn bộ data vào context
-      login({ user, userMetric });
+      login({ user, userMetric, token });
+      console.log("Token:", token);
+      
+      // Kết nối WebSocket cho tất cả users (để nhận support requests và notifications)
+      console.log(`${user.role.name} logged in, connecting WebSocket...`);
+      connect(token, user);
 
+      // Navigation based on role
       if (user.role.name === "USER") {
         navigate("/");
       } else if (user.role.name === "AGENT") {

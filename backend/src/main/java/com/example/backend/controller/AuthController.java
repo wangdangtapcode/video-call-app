@@ -2,8 +2,8 @@ package com.example.backend.controller;
 
 import com.example.backend.dto.request.LoginRequest;
 import com.example.backend.dto.response.LoginResponse;
-import com.example.backend.model.User;
 import com.example.backend.service.AuthService;
+import com.example.backend.service.JwtService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,11 +18,33 @@ public class AuthController {
     @Autowired
     AuthService authService;
 
+    @Autowired
+    JwtService jwtService;
+
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
         LoginResponse loginResponse = authService.login(loginRequest.getEmail(), loginRequest.getPassword());
         return ResponseEntity.ok(loginResponse);
     }
 
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(@RequestHeader(value = "Authorization", required = false) String authHeader) {
+        try {
+            // Extract token từ Authorization header
+            String token = jwtService.extractTokenFromHeader(authHeader);
+
+            // Delegate logout logic to AuthService
+            authService.logout(token);
+
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "Logout successful");
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "Logout failed: " + e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
 
 }

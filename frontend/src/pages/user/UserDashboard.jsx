@@ -1,212 +1,636 @@
 import { useUser } from "../../context/UserContext";
 import { useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
-
+import { useEffect, useState, useRef } from "react";
+import { useUserSubscriptions } from "../../hooks/useUserSubscriptions";
+import { useWebSocket } from "../../context/WebSocketContext";
+import { SupportRequestModal } from "../../components/SupportRequestModal";
 export const UserDashboard = () => {
-    const { user, logout, isLoading, isInitialized, isAuthenticated } = useUser();
-    const navigate = useNavigate();
-    const [supportCode, setSupportCode] = useState('');
-    const [selectedAgent, setSelectedAgent] = useState('');
-    const [showAgentModal, setShowAgentModal] = useState(false);
-    
-    // Mock agents data
-    const agents = [
-        { id: 1, name: 'Nguyễn Văn A', status: 'online', expertise: 'Kỹ thuật', avatar: null },
-        { id: 2, name: 'Trần Thị B', status: 'online', expertise: 'Hỗ trợ khách hàng', avatar: null },
-        { id: 3, name: 'Lê Văn C', status: 'busy', expertise: 'Tài chính', avatar: null },
-        { id: 4, name: 'Phạm Thị D', status: 'online', expertise: 'Bảo mật', avatar: null },
-    ];
-    
-    useEffect(() => {
-        // Chỉ chạy logic khi context đã khởi tạo xong
-        if (isInitialized) {
-            if (!isAuthenticated) {
-                // Nếu chưa xác thực, chuyển hướng đến trang đăng nhập
-                navigate("/login");
-            } else {
-                // NẾU ĐÃ XÁC THỰC, đảm bảo cuộn lên đầu trang
-                // Hành động này sẽ ghi đè lên hành vi khôi phục vị trí cuộn của trình duyệt
-                window.scrollTo(0, 0);
-            }
+  const { user, logout, isLoading, isInitialized, isAuthenticated, token } =
+    useUser();
+  const { isConnected } = useWebSocket();
+  const navigate = useNavigate();
+  // const {notifications,pendingRequests,acceptRequest,rejectRequest,clearNotification} = useSupportRequestNotifications();
+  const [supportCode, setSupportCode] = useState("");
+  const [selectedAgent, setSelectedAgent] = useState(null);
+  const [showAgentsList, setShowAgentsList] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [agentToConfirm, setAgentToConfirm] = useState(null);
+  const { supportUpdates,loadOnlineAgents, onlineAgents, isLoadingAgents } =
+    useUserSubscriptions();
+
+  useEffect(() => {
+    if (isInitialized) {
+      if (!isAuthenticated) {
+        navigate("/login");
+      } else {
+        window.scrollTo(0, 0);
+      }
+    }
+  }, [isInitialized, isAuthenticated, navigate]);
+
+  // useEffect(() => {
+  //   if (showAgentsList && isConnected) {
+  //     loadOnlineAgents();
+  //   }
+  // }, [showAgentsList, loadOnlineAgents, isConnected]);
+
+  const [showModal, setShowModal] = useState(false);
+  const [currentRequest, setCurrentRequest] = useState(null);
+  const prevRequestsLength = useRef(0);
+
+  useEffect(() => {
+    if (supportUpdates.length > prevRequestsLength.current) {
+      const newestRequest = supportUpdates[0]; // Giả sử mảng sắp xếp newest first
+      setCurrentRequest(newestRequest.request);
+      setShowModal(true);
+    }
+    prevRequestsLength.current = supportUpdates.length;
+  }, [supportUpdates]);
+
+  const handleAcceptRequest = async (requestId) => {
+    // TODO: Accept support request (gọi API hoặc emit WebSocket để chấp nhận)
+    console.log("Accepted request:", requestId);
+    setShowModal(false);
+    // Giả sử hook useAgentSubscriptions sẽ tự cập nhật supportRequests sau khi accept
+  };
+
+
+  const handleRejectRequest = async (requestId) => {
+    // TODO: Reject support request (gọi API hoặc emit WebSocket để từ chối, kèm reason)
+    console.log("Rejected request:", requestId);
+    setShowModal(false);
+    // Giả sử hook useAgentSubscriptions sẽ tự cập nhật supportRequests sau khi reject
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setCurrentRequest(null);
+  };
+
+  const handleQuickSupport = () => {
+    // TODO: Implement quick support request
+    alert("Yêu cầu hỗ trợ nhanh đã được gửi!");
+  };
+
+  const handleJoinWithCode = () => {
+    if (!supportCode.trim()) {
+      alert("Vui lòng nhập mã cuộc họp!");
+      return;
+    }
+    // TODO: Implement join with code
+    alert(`Tham gia cuộc họp với mã: ${supportCode}`);
+  };
+
+  const handleShowAgentsList = () => {
+    setShowAgentsList(true);
+    loadOnlineAgents();
+    // Scroll to agents list section
+    setTimeout(() => {
+      document.getElementById("agents-list")?.scrollIntoView({
+        behavior: "smooth",
+      });
+    }, 100);
+  };
+
+  const handleAgentClick = (agent) => {
+    setAgentToConfirm(agent);
+    setShowConfirmModal(true);
+  };
+
+  const confirmAgentSelection = async () => {
+    if (!agentToConfirm) return;
+
+    try {
+      const response = await fetch(
+        "http://localhost:8081/api/support/requests",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            type: "choose_agent",
+            agentId: agentToConfirm.id,
+          }),
         }
-    }, [isInitialized, isAuthenticated, navigate]);
-    
+      );
 
+      if (response.ok) {
+        const result = await response.json();
+        setSelectedAgent(agentToConfirm);
+        setShowConfirmModal(false);
+        setAgentToConfirm(null);
 
-    const handleQuickSupport = () => {
-        // TODO: Implement quick support request
-        alert('Yêu cầu hỗ trợ nhanh đã được gửi!');
-    };
-
-    const handleJoinWithCode = () => {
-        if (!supportCode.trim()) {
-            alert('Vui lòng nhập mã cuộc họp!');
-            return;
-        }
-        // TODO: Implement join with code
-        alert(`Tham gia cuộc họp với mã: ${supportCode}`);
-    };
-
-    const handleSelectAgent = (agent) => {
-        setSelectedAgent(agent);
-        setShowAgentModal(false);
-        // TODO: Implement agent selection
-        alert(`Đã chọn agent: ${agent.name}`);
-    };
-    
-    // Show loading while initializing or if user is not loaded yet
-    if (isLoading || !isInitialized) {
-        return (
-            <div className="flex items-center justify-center min-h-screen">
-                <div className="flex items-center space-x-2">
-                    <svg className="animate-spin h-8 w-8 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <p className="text-lg text-gray-600">Đang khởi tạo...</p>
-                </div>
-            </div>
+        // Show success message
+        alert(
+          `✅ Đã gửi yêu cầu hỗ trợ đến ${getAgentDisplayName(
+            agentToConfirm
+          )}! Vui lòng chờ agent xác nhận.`
         );
-    }
 
-    // If initialized but no user, redirect will happen via useEffect
-    if (!user) {
-        return null;
+        console.log("Support request created:", result);
+      } else {
+        const error = await response.json();
+        alert(`❌ Lỗi: ${error.message || "Không thể gửi yêu cầu"}`);
+      }
+    } catch (error) {
+      console.error("Error creating support request:", error);
+      alert("❌ Có lỗi xảy ra khi gửi yêu cầu. Vui lòng thử lại.");
     }
-    
+  };
+  const cancelAgentSelection = () => {
+    setShowConfirmModal(false);
+    setAgentToConfirm(null);
+  };
+
+  // Tạo avatar từ chữ cái đầu của tên
+  const getAgentInitials = (agent) => {
+    if (agent.fullName) {
+      return agent.fullName
+        .split(" ")
+        .map((word) => word[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2);
+    }
+    if (agent.email) {
+      return agent.email.charAt(0).toUpperCase();
+    }
+    return "A";
+  };
+
+  // Lấy display name cho agent
+  const getAgentDisplayName = (agent) => {
+    return agent.fullName || agent.email || `Agent ${agent.id}`;
+  };
+
+  // Show loading while initializing or if user is not loaded yet
+  if (isLoading || !isInitialized) {
     return (
-        <div className="min-h-screen bg-white">
-            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-                
-                {/* Header Section */}
-                <div className="text-center mb-16">
-                    <h1 className="text-5xl font-normal text-gray-800 mb-4">
-                        Tính năng gọi video dành cho thành viên
-                    </h1>
-                    <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-                        Hỗ trợ ở mọi nơi với VideoCall
-                    </p>
-                </div>
-
-                {/* Quick Support & Agent Selection - Same Row */}
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-8">
-                    <button
-                        onClick={handleQuickSupport}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-lg font-medium text-lg flex items-center gap-3 transition-colors duration-200 shadow-lg"
-                    >
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
-                        Yêu cầu hỗ trợ nhanh
-                    </button>
-
-                    <button
-                        onClick={() => setShowAgentModal(true)}
-                        className="bg-white hover:bg-gray-50 text-blue-600 border-2 border-blue-600 hover:border-blue-700 px-8 py-4 rounded-lg font-medium text-lg flex items-center gap-3 transition-all duration-200"
-                    >
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                        </svg>
-                        Chọn agent hỗ trợ
-                    </button>
-                </div>
-
-                {/* Selected Agent Display */}
-                {selectedAgent && (
-                    <div className="text-center mb-8">
-                        <div className="inline-flex items-center bg-blue-50 px-4 py-2 rounded-full">
-                            <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-semibold mr-3">
-                                {selectedAgent.name.charAt(0)}
-                            </div>
-                            <span className="text-blue-800 font-medium">
-                                Agent được chọn: {selectedAgent.name} ({selectedAgent.expertise})
-                            </span>
-                        </div>
-                    </div>
-                )}
-
-                {/* Join with Code - Separate Row */}
-                {/* <div className="flex flex-col items-center justify-center mb-12">
-                    <div className="flex items-center gap-4 w-full max-w-2xl">
-                        <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden bg-white flex-1">
-                            <svg className="w-5 h-5 text-gray-400 ml-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                            </svg>
-                            <input
-                                type="text"
-                                placeholder="Nhập mã cuộc họp hoặc đường link"
-                                value={supportCode}
-                                onChange={(e) => setSupportCode(e.target.value)}
-                                className="px-4 py-4 text-lg border-none outline-none flex-1"
-                                onKeyPress={(e) => e.key === 'Enter' && handleJoinWithCode()}
-                            />
-                        </div>
-                        <button
-                            onClick={handleJoinWithCode}
-                            className="text-blue-600 hover:text-blue-700 font-medium text-lg px-6 py-4 hover:bg-blue-50 rounded-lg transition-colors duration-200 whitespace-nowrap"
-                        >
-                            Tham gia
-                        </button>
-                    </div>
-                </div> */}
-
-                {/* Agent Selection Modal */}
-                {showAgentModal && (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                        <div className="bg-white rounded-2xl max-w-2xl w-full max-h-96 overflow-hidden">
-                            <div className="p-6 border-b border-gray-200">
-                                <div className="flex items-center justify-between">
-                                    <h3 className="text-xl font-semibold text-gray-900">Chọn Agent Hỗ Trợ</h3>
-                                    <button
-                                        onClick={() => setShowAgentModal(false)}
-                                        className="text-gray-400 hover:text-gray-600 transition-colors"
-                                    >
-                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <div className="p-6 max-h-80 overflow-y-auto">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {agents.map((agent) => (
-                                        <div
-                                            key={agent.id}
-                                            onClick={() => handleSelectAgent(agent)}
-                                            className="p-4 border border-gray-200 rounded-xl hover:border-blue-300 hover:bg-blue-50 cursor-pointer transition-all duration-200"
-                                        >
-                                            <div className="flex items-center space-x-3">
-                                                <div className="relative">
-                                                    <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
-                                                        {agent.name.charAt(0)}
-                                                    </div>
-                                                    <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${
-                                                        agent.status === 'online' ? 'bg-green-400' : 
-                                                        agent.status === 'busy' ? 'bg-red-400' : 'bg-gray-400'
-                                                    }`}></div>
-                                                </div>
-                                                <div className="flex-1">
-                                                    <h4 className="font-semibold text-gray-900">{agent.name}</h4>
-                                                    <p className="text-sm text-gray-600">{agent.expertise}</p>
-                                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                                                        agent.status === 'online' ? 'bg-green-100 text-green-800' :
-                                                        agent.status === 'busy' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
-                                                    }`}>
-                                                        {agent.status === 'online' ? 'Trực tuyến' : 
-                                                         agent.status === 'busy' ? 'Bận' : 'Offline'}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-            </div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="flex items-center space-x-2">
+          <svg
+            className="animate-spin h-8 w-8 text-indigo-500"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            ></circle>
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
+          </svg>
+          <p className="text-lg text-gray-600">Đang khởi tạo...</p>
         </div>
+      </div>
     );
-}
+  }
+
+  // If initialized but no user, redirect will happen via useEffect
+  if (!user) {
+    return null;
+  }
+
+  return (
+    <div className="min-h-screen bg-white">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {/* Header Section */}
+        <div className="text-center mb-16">
+          <h1 className="text-5xl font-normal text-gray-800 mb-4">
+            Tính năng gọi video dành cho thành viên
+          </h1>
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            Hỗ trợ ở mọi nơi với VideoCall
+          </p>
+        </div>
+
+        {/* Quick Support & Agent Selection - Same Row */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-8">
+          <button
+            onClick={handleQuickSupport}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-lg font-medium text-lg flex items-center gap-3 transition-colors duration-200 shadow-lg"
+          >
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+              />
+            </svg>
+            Yêu cầu hỗ trợ nhanh
+          </button>
+
+          <button
+            onClick={handleShowAgentsList}
+            className="bg-white hover:bg-gray-50 text-blue-600 border-2 border-blue-600 hover:border-blue-700 px-8 py-4 rounded-lg font-medium text-lg flex items-center gap-3 transition-all duration-200"
+          >
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+              />
+            </svg>
+            Chọn agent hỗ trợ
+          </button>
+        </div>
+
+        {/* Selected Agent Display */}
+        {selectedAgent && (
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center bg-green-50 px-6 py-3 rounded-full border border-green-200">
+              <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white text-sm font-semibold mr-3">
+                {getAgentInitials(selectedAgent)}
+              </div>
+              <span className="text-green-800 font-medium">
+                Agent được chọn: {getAgentDisplayName(selectedAgent)}
+              </span>
+              <button
+                onClick={() => setSelectedAgent(null)}
+                className="ml-3 text-green-600 hover:text-green-800"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Online Agents List */}
+        {showAgentsList && (
+          <div id="agents-list" className="mb-8">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-semibold text-gray-800">
+                Agents đang online
+                {!isLoadingAgents && (
+                  <span className="ml-2 text-lg text-gray-500">
+                    ({onlineAgents.length})
+                  </span>
+                )}
+              </h2>
+              <div className="flex items-center gap-4">
+                {/* Connection Status */}
+                <div className="flex items-center gap-2">
+                  <div
+                    className={`w-3 h-3 rounded-full ${
+                      isConnected ? "bg-green-500" : "bg-red-500"
+                    }`}
+                  />
+                  <span className="text-sm text-gray-600">
+                    {isConnected ? "Kết nối" : "Mất kết nối"}
+                  </span>
+                </div>
+
+                {/* Refresh Button */}
+                <button
+                  onClick={loadOnlineAgents}
+                  disabled={isLoadingAgents}
+                  className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200"
+                  title="Làm mới danh sách"
+                >
+                  <svg
+                    className={`w-5 h-5 ${
+                      isLoadingAgents ? "animate-spin" : ""
+                    }`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Loading State */}
+            {isLoadingAgents && (
+              <div className="flex items-center justify-center py-12">
+                <div className="flex items-center space-x-2">
+                  <svg
+                    className="animate-spin h-6 w-6 text-blue-500"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  <p className="text-gray-600">Đang tải danh sách agents...</p>
+                </div>
+              </div>
+            )}
+
+            {/* Empty State */}
+            {!isLoadingAgents && onlineAgents.length === 0 && (
+              <div className="text-center py-12">
+                <div className="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                  <svg
+                    className="w-12 h-12 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                    />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-medium text-gray-900 mb-2">
+                  Không có agent nào đang online
+                </h3>
+              </div>
+            )}
+
+            {/* Agents Grid */}
+            {!isLoadingAgents && onlineAgents.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {onlineAgents.map((agent) => (
+                  <div
+                    key={agent.id}
+                    className="group relative bg-white p-6 rounded-lg shadow-sm border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all duration-200 cursor-pointer"
+                    onClick={() => handleAgentClick(agent)}
+                    title={`Click để chọn ${getAgentDisplayName(agent)}`}
+                  >
+                    {/* Agent Avatar */}
+                    <div className="flex flex-col items-center">
+                      <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-xl font-semibold mb-3 group-hover:scale-105 transition-transform duration-200">
+                        {getAgentInitials(agent)}
+                      </div>
+
+                      {/* Agent Name */}
+                      <h3 className="text-lg font-medium text-gray-900 text-center mb-1">
+                        {getAgentDisplayName(agent)}
+                      </h3>
+                    </div>
+
+                    {/* Enhanced Hover Tooltip */}
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-3 opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-20 group-hover:translate-y-1">
+                      <div className="bg-white border border-gray-200 rounded-xl shadow-xl p-4 min-w-64">
+                        {/* Agent Info Header */}
+                        <div className="flex items-center mb-3">
+                          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold mr-3">
+                            {getAgentInitials(agent)}
+                          </div>
+                          <div className="flex-1">
+                            <div className="font-semibold text-gray-900 text-sm">
+                              {getAgentDisplayName(agent)}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Agent Details */}
+                        <div className="space-y-2 text-xs">
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-600">Email:</span>
+                            <span className="text-gray-900 font-medium">
+                              {agent.email || "N/A"}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-600">Trạng thái:</span>
+                            <div className="flex items-center gap-1">
+                              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                              <span className="text-green-600 font-medium">
+                                {agent.status}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-600">Hoạt động:</span>
+                          </div>
+                        </div>
+
+                        {/* Click hint */}
+                        <div className="mt-3 pt-3 border-t border-gray-100">
+                          <div className="text-xs text-blue-600 text-center font-medium">
+                            👆 Click để chọn agent này
+                          </div>
+                        </div>
+                      </div>
+                      {/* Enhanced Tooltip Arrow */}
+                      <div className="absolute top-full left-1/2 transform -translate-x-1/2">
+                        <div className="border-8 border-transparent border-t-white" />
+                        <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 border-8 border-transparent border-t-gray-200" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Enhanced Confirmation Modal */}
+        {showConfirmModal && agentToConfirm && (
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full mx-4 transform transition-all duration-300 scale-100">
+              {/* Modal Header */}
+              <div className="relative p-6 pb-4">
+                <div className="absolute top-6 right-6">
+                  <button
+                    onClick={cancelAgentSelection}
+                    className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors duration-200"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
+
+                <div className="text-center">
+                  <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-2xl font-bold mx-auto mb-4 shadow-lg">
+                    {getAgentInitials(agentToConfirm)}
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-1">
+                    Xác nhận chọn Agent
+                  </h3>
+                  <p className="text-gray-500 text-sm">
+                    Agent sẽ được thông báo về yêu cầu hỗ trợ của bạn
+                  </p>
+                </div>
+              </div>
+
+              {/* Agent Details Card */}
+              <div className="px-6 pb-6">
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
+                  <div className="text-center">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                      {getAgentDisplayName(agentToConfirm)}
+                    </h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center justify-center gap-2">
+                        <svg
+                          className="w-4 h-4 text-gray-500"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M3 8l7.89 7.89a2 2 0 002.83 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                          />
+                        </svg>
+                        <span className="text-gray-700">
+                          {agentToConfirm.email}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-center gap-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                        <span className="text-green-600 font-medium">
+                          Online - Sẵn sàng hỗ trợ
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-center gap-2">
+                        <svg
+                          className="w-4 h-4 text-gray-500"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Confirmation Question */}
+              <div className="px-6 pb-4">
+                <div className="text-center">
+                  <p className="text-gray-700 text-lg font-medium mb-2">
+                    🤝 Bạn có muốn chọn agent này để hỗ trợ?
+                  </p>
+                  <p className="text-gray-500 text-sm">
+                    Agent sẽ nhận được thông báo và có thể bắt đầu hỗ trợ bạn
+                    ngay lập tức
+                  </p>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 p-6 pt-4 bg-gray-50 rounded-b-2xl">
+                <button
+                  onClick={cancelAgentSelection}
+                  className="flex-1 px-4 py-3 text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 hover:border-gray-400 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                  Hủy bỏ
+                </button>
+                <button
+                  onClick={confirmAgentSelection}
+                  className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 shadow-lg"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                  Xác nhận chọn
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {showModal && currentRequest && (
+        <SupportRequestModal
+          request={currentRequest.request}
+          onAccept={handleAcceptRequest}
+          onReject={handleRejectRequest}
+          onClose={handleCloseModal}
+        />
+      )}
+    </div>
+  );
+};

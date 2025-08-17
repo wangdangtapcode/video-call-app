@@ -1,11 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../../context/UserContext';
+import { useWebSocket } from '../../context/WebSocketContext';
+import axios from 'axios';
 
 export const Header = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
-  const { user, logout } = useUser();
+  const { user, logout, isAgent, token } = useUser();
+  const { disconnect } = useWebSocket();
   const navigate = useNavigate();
 
   // Đóng dropdown khi click bên ngoài
@@ -26,9 +29,31 @@ export const Header = () => {
     setIsDropdownOpen(!isDropdownOpen);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setIsDropdownOpen(false);
+    
+    try {
+      // Call backend logout API với JWT token
+      if (user && token) {
+        console.log('Calling logout API with JWT token...');
+        await axios.post('http://localhost:8081/api/auth/logout', {}, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error during logout API call:', error);
+      // Continue with logout even if API call fails
+    }
+    
+    // Disconnect WebSocket
+    disconnect();
+    
+    // Clear user context
     logout();
+    
+    // Redirect to login
     navigate('/login');
   };
 

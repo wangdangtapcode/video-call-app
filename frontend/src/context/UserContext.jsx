@@ -12,6 +12,7 @@ const USER_ACTIONS = {
 const initialState = {
   user: null,
   userMetric: null, // Thông tin agent (nếu user là agent)
+  token: null, // JWT token
   isLoading: true, // Loading khi app khởi động
   isInitialized: false // Đã khởi tạo xong chưa
 };
@@ -24,6 +25,7 @@ const userReducer = (state, action) => {
         ...state,
         user: action.payload.user,
         userMetric: action.payload.userMetric || null,
+        token: action.payload.token || null,
         isLoading: false,
         isInitialized: true
       };
@@ -33,6 +35,7 @@ const userReducer = (state, action) => {
         ...state,
         user: null,
         userMetric: null,
+        token: null,
         isLoading: false,
         isInitialized: true
       };
@@ -62,39 +65,44 @@ const UserContext = createContext();
 export const UserProvider = ({ children }) => {
   const [state, dispatch] = useReducer(userReducer, initialState);
 
-  // Load user from localStorage on app start
-  useEffect(() => {
-    const initializeUser = async () => {
-      try {
-        const savedUserData = localStorage.getItem('userData');
-        if (savedUserData) {
-          const userData = JSON.parse(savedUserData);
+// Load từ sessionStorage
+useEffect(() => {
+  const initializeUser = async () => {
+    try {
+      const savedUserData = sessionStorage.getItem('userData');
+      if (savedUserData) {
+        const userData = JSON.parse(savedUserData);
+        if (userData.token) {
           dispatch({ type: USER_ACTIONS.LOGIN, payload: userData });
         } else {
+          sessionStorage.removeItem('userData');
           dispatch({ type: USER_ACTIONS.INIT_COMPLETE });
         }
-      } catch (error) {
-        console.error('Error parsing saved user data:', error);
-        localStorage.removeItem('userData');
+      } else {
         dispatch({ type: USER_ACTIONS.INIT_COMPLETE });
       }
-    };
-
-    initializeUser();
-  }, []);
-
-  // Save user data to localStorage whenever user or agent changes
-  useEffect(() => {
-    if (state.user) {
-      const userData = {
-        user: state.user,
-        userMetric: state.userMetric
-      };
-      localStorage.setItem('userData', JSON.stringify(userData));
-    } else {
-      localStorage.removeItem('userData');
+    } catch (error) {
+      console.error('Error parsing saved user data:', error);
+      sessionStorage.removeItem('userData');
+      dispatch({ type: USER_ACTIONS.INIT_COMPLETE });
     }
-  }, [state.user, state.userMetric]);
+  };
+  initializeUser();
+}, []);
+
+// Save vào sessionStorage
+useEffect(() => {
+  if (state.user && state.token) {
+    const userData = {
+      user: state.user,
+      userMetric: state.userMetric,
+      token: state.token
+    };
+    sessionStorage.setItem('userData', JSON.stringify(userData));
+  } else {
+    sessionStorage.removeItem('userData');
+  }
+}, [state.user, state.userMetric, state.token]);
 
   // Action functions
   const login = (userData) => {
@@ -103,13 +111,14 @@ export const UserProvider = ({ children }) => {
 
   const logout = () => {
     dispatch({ type: USER_ACTIONS.LOGOUT });
-    localStorage.removeItem('userData');
+    sessionStorage.removeItem('userData');
   };
 
   const value = {
     // State
     user: state.user,
     userMetric: state.userMetric,
+    token: state.token,
     isLoading: state.isLoading,
     isInitialized: state.isInitialized,
     isAuthenticated: !!state.user,

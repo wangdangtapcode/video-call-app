@@ -1,5 +1,6 @@
 package com.example.backend.model;
 
+import com.example.backend.enums.AgentStatus;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -20,7 +21,8 @@ public class UserMetric {
     private Long id;
 
     @Column(nullable = false, length = 20)
-    private String status = "offline";
+    @Enumerated(EnumType.STRING)
+    private AgentStatus status = AgentStatus.OFFLINE;
 
     @Column
     private Double rating = 0.00;

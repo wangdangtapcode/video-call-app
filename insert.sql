@@ -29,8 +29,8 @@ VALUES
 
 INSERT INTO user_metrics (status, rating, total_calls, total_call_time, user_id)
 VALUES
-('offline', 0.00, 0, 0, 2),
-('offline', 0.00, 0, 0, 3);
+('OFFLINE', 0.00, 0, 0, 2),
+('OFFLINE', 0.00, 0, 0, 3);
 
 
 
