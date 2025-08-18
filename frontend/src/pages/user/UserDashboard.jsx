@@ -41,7 +41,9 @@ export const UserDashboard = () => {
   useEffect(() => {
     if (supportUpdates.length > prevRequestsLength.current) {
       const newestRequest = supportUpdates[0]; // Giả sử mảng sắp xếp newest first
+      console.log("New support request update:", newestRequest);
       setCurrentRequest(newestRequest.request);
+
       setShowModal(true);
     }
     prevRequestsLength.current = supportUpdates.length;
@@ -51,6 +53,9 @@ export const UserDashboard = () => {
     // TODO: Accept support request (gọi API hoặc emit WebSocket để chấp nhận)
     console.log("Accepted request:", requestId);
     setShowModal(false);
+    setCurrentRequest(null);
+    navigate(`/call/${requestId}`);
+
     // Giả sử hook useAgentSubscriptions sẽ tự cập nhật supportRequests sau khi accept
   };
 
@@ -625,7 +630,7 @@ export const UserDashboard = () => {
 
       {showModal && currentRequest && (
         <SupportRequestModal
-          request={currentRequest.request}
+          request={currentRequest}
           onAccept={handleAcceptRequest}
           onReject={handleRejectRequest}
           onClose={handleCloseModal}

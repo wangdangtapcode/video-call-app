@@ -33,7 +33,7 @@ export const useUserSubscriptions = () => {
 
   useRoleChannelListener("agent_accepted", (data) => {
     console.log("Agent accepted support request:", data);
-    setSupportUpdates((prev) => [data, ...prev.slice(0, 9)]);
+    setSupportUpdates((prev) => [data, ...prev]);
 
     // Auto redirect to call page after 2 seconds
     // setTimeout(() => {

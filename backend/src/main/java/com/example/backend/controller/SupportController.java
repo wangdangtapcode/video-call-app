@@ -22,11 +22,12 @@ public class SupportController {
     @Autowired
     private JwtService jwtService;
 
-    /**
-     * POST /api/support/requests
-     * Body: { "userId": "...", "type": "quick_support" } hoặc { "userId": "...",
-     * "type": "choose_agent", "agentId": "..." }
-     */
+    @GetMapping("/requests/{requestId}")
+    public ResponseEntity<?> getSupportRequest(@PathVariable Long requestId,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        return supportRequestService.getSupportRequest(requestId, authHeader);
+    }
+
     @PostMapping("/requests")
     public ResponseEntity<?> createSupportRequest(
             @RequestBody Map<String, Object> requestBody,
@@ -153,81 +154,6 @@ public class SupportController {
         }
     }
 
-    /**
-     * GET /api/support/requests/my
-     * Lấy danh sách support requests của user hiện tại
-     */
-    @GetMapping("/requests/my")
-    public ResponseEntity<?> getMyRequests(
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
-
-        try {
-            // Extract và validate JWT token
-            String token = jwtService.extractTokenFromHeader(authHeader);
-            if (token == null || jwtService.isTokenExpired(token)) {
-                return ResponseEntity.badRequest().body("Invalid or expired token");
-            }
-
-            Long userId = jwtService.extractUserId(token);
-
-            List<SupportRequest> requests = supportRequestService.getUserRequests(userId);
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("requests", requests);
-            response.put("count", requests.size());
-            response.put("timestamp", System.currentTimeMillis());
-
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Error getting user requests: " + e.getMessage());
-        }
-    }
-
-    /**
-     * GET /api/support/requests/agent
-     * Lấy danh sách support requests assigned cho agent hiện tại
-     */
-    @GetMapping("/requests/agent")
-    public ResponseEntity<?> getAgentRequests(
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
-
-        try {
-            // Extract và validate JWT token
-            String token = jwtService.extractTokenFromHeader(authHeader);
-            if (token == null || jwtService.isTokenExpired(token)) {
-                return ResponseEntity.badRequest().body("Invalid or expired token");
-            }
-
-            Long agentId = jwtService.extractUserId(token);
-            String userRole = jwtService.extractRole(token);
-
-            // Validate agent role
-            if (!"AGENT".equalsIgnoreCase(userRole)) {
-                Map<String, String> response = new HashMap<>();
-                response.put("message", "Only agents can access this endpoint");
-                return ResponseEntity.badRequest().body(response);
-            }
-
-            List<SupportRequest> requests = supportRequestService.getAgentRequests(agentId);
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("requests", requests);
-            response.put("count", requests.size());
-            response.put("timestamp", System.currentTimeMillis());
-
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Error getting agent requests: " + e.getMessage());
-        }
-    }
-
-    /**
-     * POST /api/support/requests/{requestId}/respond
-     * Agent respond to support request (accept/reject)
-     * Body: { "action": "accept" } hoặc { "action": "reject", "reason": "..." }
-     */
     @PostMapping("/requests/{requestId}/respond")
     public ResponseEntity<?> respondToRequest(
             @PathVariable Long requestId,

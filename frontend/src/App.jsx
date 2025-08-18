@@ -1,13 +1,13 @@
-import './App.css'
-import { Routers } from './router/routes'
-import { AppProvider } from './context/AppProvider'
+import "./App.css";
+import { Routers } from "./router/routes";
+import { AppProvider } from "./context/AppProvider";
 
 function App() {
   return (
     <AppProvider>
-      <Routers/>
+      <Routers />
     </AppProvider>
-  )
+  );
 }
 
-export default App
+export default App;

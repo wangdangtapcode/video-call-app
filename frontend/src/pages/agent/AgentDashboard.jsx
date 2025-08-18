@@ -4,11 +4,11 @@ import { useEffect, useState, useRef } from "react";
 import { useUserSubscriptions } from "../../hooks/useUserSubscriptions";
 import { useAgentSubscriptions } from "../../hooks/useAgentSubscriptions";
 import { useWebSocket } from "../../context/WebSocketContext";
-// import { useSupportRequestNotifications } from "../../hooks/useSupportRequestNotifications";
 import { SupportRequestModal } from "../../components/SupportRequestModal";
+import axios from "axios";
 export const AgentDashboard = () => {
-  const { user, logout, isLoading, isInitialized, isAuthenticated } = useUser();
-  // const {notifications,pendingRequests,acceptRequest,rejectRequest,clearNotification} = useSupportRequestNotifications();
+  const { user, logout, isLoading, isInitialized, isAuthenticated, token } =
+    useUser();
   const { isConnected } = useWebSocket();
   const navigate = useNavigate();
   const { agentStatus, updateAgentStatus } = useUserSubscriptions();
@@ -37,15 +37,16 @@ export const AgentDashboard = () => {
       }
     }
   }, [isInitialized, isAuthenticated, user, navigate]);
-// Phát hiện request mới và hiển thị modal
-useEffect(() => {
-  if (supportRequests.length > prevRequestsLength.current) {
-    const newestRequest = supportRequests[0]; // Giả sử mảng sắp xếp newest first
-    setCurrentRequest(newestRequest.request);
-    setShowModal(true);
-  }
-  prevRequestsLength.current = supportRequests.length;
-}, [supportRequests]);
+  // Phát hiện request mới và hiển thị modal
+  useEffect(() => {
+    if (supportRequests.length > prevRequestsLength.current) {
+      const newestRequest = supportRequests[0]; // Giả sử mảng sắp xếp newest first
+      console.log("New support request update:", newestRequest);
+      setCurrentRequest(newestRequest.request);
+      setShowModal(true);
+    }
+    prevRequestsLength.current = supportRequests.length;
+  }, [supportRequests]);
   // Show loading while initializing
   if (isLoading || !isInitialized) {
     return (
@@ -91,16 +92,54 @@ useEffect(() => {
     }
   };
   const handleRejectRequest = async (requestId) => {
-    // TODO: Reject support request (gọi API hoặc emit WebSocket để từ chối, kèm reason)
-    console.log("Rejected request:", requestId);
-    setShowModal(false);
-    // Giả sử hook useAgentSubscriptions sẽ tự cập nhật supportRequests sau khi reject
+    try {
+      const response = await axios.post(
+        `http://localhost:8081/api/support/requests/${requestId}/respond`,
+        {
+          action: "reject",
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.status === 200) {
+        console.log("Request rejected successfully");
+        setShowModal(false);
+        setCurrentRequest(null);
+        }
+    } catch (error) {
+      console.error("Error rejecting request:", error);
+      alert("Có lỗi xảy ra khi từ chối yêu cầu");
+    }
   };
+
   const handleAcceptRequest = async (requestId) => {
-    // TODO: Accept support request (gọi API hoặc emit WebSocket để chấp nhận)
-    console.log("Accepted request:", requestId);
-    setShowModal(false);
-    // Giả sử hook useAgentSubscriptions sẽ tự cập nhật supportRequests sau khi accept
+    try {
+      const response = await axios.post(
+        `http://localhost:8081/api/support/requests/${requestId}/respond`,
+        {
+          action: "accept",
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.status === 200) {
+        console.log("Request accepted successfully");
+        setShowModal(false);
+        setCurrentRequest(null);
+        navigate(`/call/${requestId}`);
+      }
+    } catch (error) {
+      console.error("Error accepting request:", error);
+      alert("Có lỗi xảy ra khi chấp nhận yêu cầu");
+    }
   };
   const handleCloseModal = () => {
     setShowModal(false);
@@ -110,7 +149,6 @@ useEffect(() => {
     // TODO: Join video call with user
     console.log("Joining video call for request:", requestId);
   };
-
 
   const getStatusColor = (status) => {
     switch (status?.toUpperCase()) {
