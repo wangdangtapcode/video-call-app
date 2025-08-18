@@ -13,15 +13,15 @@ export const AppProvider = ({ children }) => {
   );
 };
 
-/**
- * Convenience hook để sử dụng context dễ dàng
- */
-export const useApp = () => {
-  const { useUser } = require('./UserContext');
+// /**
+//  * Convenience hook để sử dụng context dễ dàng
+//  */
+// export const useApp = () => {
+//   const { useUser } = require('./UserContext');
   
-  return {
-    user: useUser()
-  };
-};
+//   return {
+//     user: useUser()
+//   };
+// };
 
 export default AppProvider;

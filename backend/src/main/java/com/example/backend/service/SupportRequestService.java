@@ -1,5 +1,6 @@
 package com.example.backend.service;
 
+import com.example.backend.dto.response.SupportRequestDTO;
 import com.example.backend.enums.AgentStatus;
 import com.example.backend.enums.SupportRequestStatus;
 import com.example.backend.model.SupportRequest;
@@ -9,12 +10,14 @@ import com.example.backend.repository.SupportRequestRepository;
 import com.example.backend.repository.UserRepository;
 import com.example.backend.repository.UserMetricRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -37,9 +40,34 @@ public class SupportRequestService {
     @Autowired
     private WebSocketBroadcastService webSocketBroadcastService;
 
-    /**
-     * Tạo support request mới và trả về ngay lập tức
-     */
+    @Autowired
+    private JwtService jwtService;
+
+    public ResponseEntity<?> getSupportRequest(Long requestId, String authHeader) {
+        try {
+            String token = jwtService.extractTokenFromHeader(authHeader);
+            if (token == null || jwtService.isTokenExpired(token)) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Invalid or expired token"));
+            }
+
+            SupportRequest request = supportRequestRepository.findById(requestId)
+                    .orElseThrow(() -> new RuntimeException("Support request not found"));
+            SupportRequestDTO response = new SupportRequestDTO();
+            response.setId(request.getId());
+            response.setUserId(request.getUser().getId());
+            response.setAgentId(request.getAgent().getId());
+            response.setStatus(request.getStatus());
+            response.setCreatedAt(request.getCreatedAt() != null ? request.getCreatedAt().toString() : null);
+            response.setMatchedAt(request.getMatchedAt() != null ? request.getMatchedAt().toString() : null);
+            response.setCompletedAt(request.getCompletedAt() != null ? request.getCompletedAt().toString() : null);
+            response.setTimeoutAt(request.getTimeoutAt() != null ? request.getTimeoutAt().toString() : null);
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
+    }
+
     public SupportRequest createSupportRequest(Long userId, String type, Long agentId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -235,27 +263,6 @@ public class SupportRequestService {
         notificationService.notifyRequestCompleted(request);
     }
 
-    /**
-     * Lấy support requests của user
-     */
-    public List<SupportRequest> getUserRequests(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        return supportRequestRepository.findByUserOrderByCreatedAtDesc(user);
-    }
-
-    /**
-     * Lấy support requests của agent
-     */
-    public List<SupportRequest> getAgentRequests(Long agentId) {
-        User agent = userRepository.findById(agentId)
-                .orElseThrow(() -> new RuntimeException("Agent not found"));
-        return supportRequestRepository.findByAgentOrderByCreatedAtDesc(agent);
-    }
-
-    /**
-     * Xử lý agent response (accept/reject) cho support request
-     */
     public SupportRequest processAgentResponse(Long requestId, Long agentId,
             boolean isAccepted) {
         SupportRequest request = supportRequestRepository.findById(requestId)
@@ -284,16 +291,17 @@ public class SupportRequestService {
             notificationService.notifyAgentAccepted(request);
 
             // Broadcast to both user and agent
-//            webSocketBroadcastService.broadcastSupportUpdate(
-//                    request.getUser().getId(),
-//                    "AGENT_ACCEPTED",
-//                    "Agent " + agent.getFullName() + " đã chấp nhận hỗ trợ bạn! Đang chuyển đến video call...");
-//
-//            webSocketBroadcastService.broadcastSupportUpdate(
-//                    agent.getId(),
-//                    "REQUEST_ACCEPTED",
-//                    "Bạn đã chấp nhận hỗ trợ user " + request.getUser().getFullName()
-//                            + ". Đang chuyển đến video call...");
+            // webSocketBroadcastService.broadcastSupportUpdate(
+            // request.getUser().getId(),
+            // "AGENT_ACCEPTED",
+            // "Agent " + agent.getFullName() + " đã chấp nhận hỗ trợ bạn! Đang chuyển đến
+            // video call...");
+            //
+            // webSocketBroadcastService.broadcastSupportUpdate(
+            // agent.getId(),
+            // "REQUEST_ACCEPTED",
+            // "Bạn đã chấp nhận hỗ trợ user " + request.getUser().getFullName()
+            // + ". Đang chuyển đến video call...");
 
         } else {
             // Agent từ chối

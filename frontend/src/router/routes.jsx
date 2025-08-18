@@ -7,7 +7,7 @@ import { AgentDashboard } from "../pages/agent/AgentDashboard";
 import { AdminDashboard } from "../pages/admin/AdminDashboard";
 import AdminUser from "../pages/admin/AdminUser";
 import AdminLayout from "../layouts/AdminLayout";
-
+import { VideoCall } from "../pages/VideoCall";
 
 export const Routers = () => {
   return (
@@ -26,6 +26,10 @@ export const Routers = () => {
           <Route index element={<AdminDashboard />} />
           <Route path="user" element={<AdminUser/>}/>
         </Route>
+
+
+        {/* Video Call - No layout wrapper for full screen experience */}
+        <Route path="/call/:requestId" element={<VideoCall />} />
 
         {/*Login*/}
         <Route path="/login" element={<Login />} />
