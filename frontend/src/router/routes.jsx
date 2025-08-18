@@ -7,6 +7,7 @@ import { AgentDashboard } from "../pages/agent/AgentDashboard";
 import { AdminDashboard } from "../pages/admin/AdminDashboard";
 import AdminUser from "../pages/admin/AdminUser";
 import AdminLayout from "../layouts/AdminLayout";
+import AdminRecord from "../pages/admin/AdminRecord";
 
 
 export const Routers = () => {
@@ -25,6 +26,7 @@ export const Routers = () => {
           {/*Admin Dashboard*/}
           <Route index element={<AdminDashboard />} />
           <Route path="user" element={<AdminUser/>}/>
+          <Route path="record" element={<AdminRecord />} />
         </Route>
 
         {/*Login*/}
