@@ -12,8 +12,8 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 @Configuration
 public class S3Config {
 
-    private String a = "AKIASWHUZMKSNSPHKMLX";
-    private String b = "XSjVeBDpf2byt+5iVHoYm712xEx+jP+19Fh+erHc";
+    private String a = PrivateKey.assetKey;
+    private String b = PrivateKey.secretKey;
     private Region region = Region.AP_SOUTHEAST_2; // thay bằng region của bạn
 
     @Bean
