@@ -4,6 +4,7 @@ import React, { createContext, useContext, useReducer, useEffect } from 'react';
 const USER_ACTIONS = {
   LOGIN: 'LOGIN',
   LOGOUT: 'LOGOUT',
+  UPDATE_STATUS: 'UPDATE_STATUS',
   SET_LOADING: 'SET_LOADING',
   INIT_COMPLETE: 'INIT_COMPLETE'
 };
@@ -38,6 +39,15 @@ const userReducer = (state, action) => {
         token: null,
         isLoading: false,
         isInitialized: true
+      };
+    
+    case USER_ACTIONS.UPDATE_STATUS:
+      return {
+        ...state,
+        userMetric: {
+          ...state.userMetric,
+          status: action.payload
+        }
       };
     
     case USER_ACTIONS.SET_LOADING:
@@ -114,6 +124,10 @@ useEffect(() => {
     sessionStorage.removeItem('userData');
   };
 
+  const updateStatus = (status) => {
+    dispatch({ type: USER_ACTIONS.UPDATE_STATUS, payload: status });
+  };
+
   const value = {
     // State
     user: state.user,
@@ -126,6 +140,7 @@ useEffect(() => {
     // Actions
     login,
     logout,
+    updateStatus,
   };
 
   return (

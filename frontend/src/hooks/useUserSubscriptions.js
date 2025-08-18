@@ -13,7 +13,6 @@ export const useUserSubscriptions = () => {
   const [supportUpdates, setSupportUpdates] = useState([]);
 
   // Agent presence states (moved from useAgentPresence)
-  const [agentStatus, setAgentStatus] = useState("OFFLINE");
   const [onlineAgents, setOnlineAgents] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingAgents, setIsLoadingAgents] = useState(false);
@@ -76,7 +75,7 @@ export const useUserSubscriptions = () => {
 
       // Update own status if it's for current user
       if (user && userId === user.id) {
-        setAgentStatus(status);
+        // setAgentStatus(status);
       }
       setTimeout(() => {
         console.log(
@@ -112,42 +111,13 @@ export const useUserSubscriptions = () => {
     }
   }, [token]);
 
-  const updateAgentStatus = useCallback(
-    async (newStatus) => {
-      if (!user || !isAgent || !token) {
-        console.warn("Cannot update status: user is not an agent or no token");
-        return false;
-      }
-
-      try {
-        setIsLoading(true);
-        console.log("Updating agent status to:", newStatus);
-
-        await axios.put(`${API_BASE_URL}/agents/${user.id}/status`, null, {
-          params: { status: newStatus },
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        return true;
-      } catch (error) {
-        console.error("Error updating agent status:", error);
-        return false;
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [user, isAgent, token]
-  );
-
   // Initialize agent status from userMetric
-  useEffect(() => {
-    if (user && isAgent && userMetric) {
-      const initialStatus = userMetric.status || "ONLINE";
-      setAgentStatus(initialStatus);
-    }
-  }, [user, isAgent, userMetric]);
+  // useEffect(() => {
+  //   if (user && isAgent && userMetric) {
+  //     const initialStatus = userMetric.status || "ONLINE";
+  //     setAgentStatus(initialStatus);
+  //   }
+  // }, [user, isAgent, userMetric]);
 
   return {
     // User subscription data
@@ -157,13 +127,12 @@ export const useUserSubscriptions = () => {
     supportUpdates,
 
     // Agent presence data (for backwards compatibility)
-    agentStatus,
+    // agentStatus,
     onlineAgents,
     isLoading,
     isLoadingAgents,
 
     // Agent presence functions
-    updateAgentStatus,
     loadOnlineAgents,
   };
 };

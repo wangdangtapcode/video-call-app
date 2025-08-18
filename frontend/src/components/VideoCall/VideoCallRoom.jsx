@@ -417,22 +417,22 @@ export const VideoCallRoom = ({
       const data = JSON.parse(event.data);
 
       switch (event.type) {
-        case "video-toggle":
+        case "signal:video-toggle":
           console.log(
             `User ${data.userId} toggled video: ${data.videoEnabled}`
           );
           break;
-        case "audio-toggle":
+        case "signal:audio-toggle":
           console.log(
             `User ${data.userId} toggled audio: ${data.audioEnabled}`
           );
           break;
-        case "screen-share":
+        case "signal:screen-share":
           console.log(
             `User ${data.userId} toggled screen share: ${data.screenSharing}`
           );
           break;
-        case "recording":
+        case "signal:recording":
           console.log(
             `User ${data.userId} toggled recording: ${data.recording}`
           );
@@ -457,12 +457,12 @@ export const VideoCallRoom = ({
       });
 
       // Notify via WebSocket
-      if (isWebSocketConnected) {
-        sendMessage(`/app/call/${requestId}/video-toggle`, {
-          userId,
-          videoEnabled: newVideoState,
-        });
-      }
+      // if (isWebSocketConnected) {
+      //   sendMessage(`/app/call/${requestId}/video-toggle`, {
+      //     userId,
+      //     videoEnabled: newVideoState,
+      //   });
+      // }
     } catch (error) {
       console.error("Error toggling video:", error);
     }
@@ -480,12 +480,12 @@ export const VideoCallRoom = ({
       });
 
       // Notify via WebSocket
-      if (isWebSocketConnected) {
-        sendMessage(`/app/call/${requestId}/audio-toggle`, {
-          userId,
-          audioEnabled: newAudioState,
-        });
-      }
+      // if (isWebSocketConnected) {
+      //   sendMessage(`/app/call/${requestId}/audio-toggle`, {
+      //     userId,
+      //     audioEnabled: newAudioState,
+      //   });
+      // }
     } catch (error) {
       console.error("Error toggling audio:", error);
     }
