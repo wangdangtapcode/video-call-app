@@ -106,7 +106,7 @@ export const AgentDashboard = () => {
         console.log("Request rejected successfully");
         setShowModal(false);
         setCurrentRequest(null);
-        }
+      }
     } catch (error) {
       console.error("Error rejecting request:", error);
       alert("Có lỗi xảy ra khi từ chối yêu cầu");
@@ -132,10 +132,10 @@ export const AgentDashboard = () => {
         setShowModal(false);
         setCurrentRequest(null);
         const success = await updateAgentStatus("BUSY");
-    if (!success) {
-      console.error("Failed to update agent status");
-      // Có thể hiển thị notification lỗi ở đây
-    }
+        if (!success) {
+          console.error("Failed to update agent status");
+          // Có thể hiển thị notification lỗi ở đây
+        }
         navigate(`/call/${requestId}`);
       }
     } catch (error) {
@@ -186,7 +186,7 @@ export const AgentDashboard = () => {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
             <div className="mb-4 md:mb-0">
               <h1 className="text-3xl font-bold text-gray-900">
-                Chào mừng,  {user.fullName} ! 
+                Chào mừng, {user.fullName} !
               </h1>
               <p className="text-gray-600 mt-1">
                 Bảng điều khiển hỗ trợ khách hàng
