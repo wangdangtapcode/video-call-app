@@ -1,19 +1,16 @@
 import { useUser } from "../../context/UserContext";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
-import { useUserSubscriptions } from "../../hooks/useUserSubscriptions";
 import { useAgentSubscriptions } from "../../hooks/useAgentSubscriptions";
 import { useWebSocket } from "../../context/WebSocketContext";
 import { SupportRequestModal } from "../../components/SupportRequestModal";
 import axios from "axios";
 export const AgentDashboard = () => {
-  const { user, logout, isLoading, isInitialized, isAuthenticated, token } =
+  const { user, userMetric, isLoading, isInitialized, isAuthenticated, token } =
     useUser();
   const { isConnected } = useWebSocket();
   const navigate = useNavigate();
-  const { agentStatus, updateAgentStatus } = useUserSubscriptions();
-
-  const { supportRequests } = useAgentSubscriptions();
+  const { supportRequests, updateAgentStatus } = useAgentSubscriptions();
 
   const [stats, setStats] = useState({
     totalRequests: 24,
@@ -109,7 +106,7 @@ export const AgentDashboard = () => {
         console.log("Request rejected successfully");
         setShowModal(false);
         setCurrentRequest(null);
-        }
+      }
     } catch (error) {
       console.error("Error rejecting request:", error);
       alert("Có lỗi xảy ra khi từ chối yêu cầu");
@@ -134,6 +131,11 @@ export const AgentDashboard = () => {
         console.log("Request accepted successfully");
         setShowModal(false);
         setCurrentRequest(null);
+        const success = await updateAgentStatus("BUSY");
+        if (!success) {
+          console.error("Failed to update agent status");
+          // Có thể hiển thị notification lỗi ở đây
+        }
         navigate(`/call/${requestId}`);
       }
     } catch (error) {
@@ -184,7 +186,7 @@ export const AgentDashboard = () => {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
             <div className="mb-4 md:mb-0">
               <h1 className="text-3xl font-bold text-gray-900">
-                Chào mừng, Agent {user.fullName}! 👨‍💻
+                Chào mừng, {user.fullName} !
               </h1>
               <p className="text-gray-600 mt-1">
                 Bảng điều khiển hỗ trợ khách hàng
@@ -199,11 +201,11 @@ export const AgentDashboard = () => {
                 </span>
                 <div
                   className={`w-3 h-3 rounded-full ${getStatusColor(
-                    agentStatus
+                    userMetric.status
                   )}`}
                 ></div>
                 <span className="text-sm font-medium text-gray-900">
-                  {getStatusText(agentStatus)}
+                  {getStatusText(userMetric.status)}
                 </span>
                 {!isConnected && (
                   <span className="text-xs text-red-500">(Mất kết nối)</span>
@@ -211,7 +213,7 @@ export const AgentDashboard = () => {
               </div>
 
               <select
-                value={agentStatus}
+                value={userMetric.status}
                 onChange={(e) => handleStatusChange(e.target.value)}
                 disabled={!isConnected}
                 className="bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"

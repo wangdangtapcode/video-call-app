@@ -46,7 +46,7 @@ export const VideoCallRoom = ({
   const [error, setError] = useState(null);
   const [permissionStatus, setPermissionStatus] = useState("requesting");
   const [retryCount, setRetryCount] = useState(0);
-
+  const [id_connection, setId_connection] = useState(null);
   // Refs
   const userVideoRef = useRef(null);
   const subscribersRef = useRef(null);
@@ -195,10 +195,13 @@ export const VideoCallRoom = ({
             setParticipants((prev) => [
               ...prev,
               {
-                id: event.stream.connection.connectionId,
+                id_connection: event.stream.connection.connectionId,
+                id: connectionData.userId,
                 name: connectionData.userName || "Other participant",
                 role: connectionData.role || (isAgent ? "USER" : "AGENT"),
                 streamManager: subscriber,
+                videoEnabled: event.stream.streamManager.stream.videoActive,
+                audioEnabled: event.stream.streamManager.stream.audioActive,
               },
             ]);
 
@@ -244,6 +247,8 @@ export const VideoCallRoom = ({
                 name: "Unknown participant",
                 role: isAgent ? "USER" : "AGENT",
                 streamManager: subscriber,
+                videoEnabled: event.stream.streamManager.stream.videoActive,
+                audioEnabled: event.stream.streamManager.stream.audioActive,
               },
             ]);
           }
@@ -381,6 +386,8 @@ export const VideoCallRoom = ({
             name: userName,
             role: userRole,
             streamManager: ovPublisher,
+            videoEnabled: isVideoEnabled,
+            audioEnabled: isAudioEnabled,
           },
         ]);
 
@@ -417,22 +424,39 @@ export const VideoCallRoom = ({
       const data = JSON.parse(event.data);
 
       switch (event.type) {
-        case "video-toggle":
+        case "signal:video-toggle":
           console.log(
             `User ${data.userId} toggled video: ${data.videoEnabled}`
           );
+          console.log('Current participants before signal update:', participants);
+          setParticipants((prev) => {
+            const updated = prev.map((p) =>
+              p.id === data.userId
+                ? { ...p, videoEnabled: data.videoEnabled }
+                : p
+            );
+            console.log('Updated participants after signal:', updated);
+            return updated;
+          });
           break;
-        case "audio-toggle":
+        case "signal:audio-toggle":
           console.log(
             `User ${data.userId} toggled audio: ${data.audioEnabled}`
           );
+          setParticipants((prev) =>
+            prev.map((p) =>
+              p.id === data.userId
+                ? { ...p, audioEnabled: data.audioEnabled }
+                : p
+            )
+          );
           break;
-        case "screen-share":
+        case "signal:screen-share":
           console.log(
             `User ${data.userId} toggled screen share: ${data.screenSharing}`
           );
           break;
-        case "recording":
+        case "signal:recording":
           console.log(
             `User ${data.userId} toggled recording: ${data.recording}`
           );
@@ -450,19 +474,25 @@ export const VideoCallRoom = ({
       const newVideoState = openViduService.current.toggleVideo();
       setIsVideoEnabled(newVideoState);
 
+      console.log(`Video toggled: ${newVideoState ? 'enabled' : 'disabled'} for user ${userId}`);
+      console.log('Current participants before update:', participants);
+
+      // Update own participant state
+      setParticipants((prev) => {
+        const updated = prev.map((p) =>
+          p.id === userId ? { ...p, videoEnabled: newVideoState } : p
+        );
+        console.log('Updated participants:', updated);
+        return updated;
+      });
+
       // Send signal to other participants
       openViduService.current.sendSignal("video-toggle", {
         userId,
         videoEnabled: newVideoState,
       });
 
-      // Notify via WebSocket
-      if (isWebSocketConnected) {
-        sendMessage(`/app/call/${requestId}/video-toggle`, {
-          userId,
-          videoEnabled: newVideoState,
-        });
-      }
+      console.log(`Sent signal: video-toggle for userId ${userId}, enabled: ${newVideoState}`);
     } catch (error) {
       console.error("Error toggling video:", error);
     }
@@ -473,6 +503,13 @@ export const VideoCallRoom = ({
       const newAudioState = openViduService.current.toggleAudio();
       setIsAudioEnabled(newAudioState);
 
+      // Update own participant state
+      setParticipants((prev) =>
+        prev.map((p) =>
+          p.id === userId ? { ...p, audioEnabled: newAudioState } : p
+        )
+      );
+
       // Send signal to other participants
       openViduService.current.sendSignal("audio-toggle", {
         userId,
@@ -480,12 +517,12 @@ export const VideoCallRoom = ({
       });
 
       // Notify via WebSocket
-      if (isWebSocketConnected) {
-        sendMessage(`/app/call/${requestId}/audio-toggle`, {
-          userId,
-          audioEnabled: newAudioState,
-        });
-      }
+      // if (isWebSocketConnected) {
+      //   sendMessage(`/app/call/${requestId}/audio-toggle`, {
+      //     userId,
+      //     audioEnabled: newAudioState,
+      //   });
+      // }
     } catch (error) {
       console.error("Error toggling audio:", error);
     }
@@ -779,24 +816,33 @@ export const VideoCallRoom = ({
               ></div>
 
               {/* Video placeholder when video is disabled or loading */}
-              {(!isVideoEnabled || callStatus !== "connected") && (
-                <div className="absolute inset-0 bg-gray-800 flex items-center justify-center z-10">
-                  <div className="text-gray-400 text-center">
-                    {callStatus === "connecting" ||
-                    callStatus === "initializing" ? (
-                      <>
-                        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
-                        <p>Đang kết nối...</p>
-                      </>
-                    ) : (
-                      <>
-                        <VideoOff className="w-16 h-16 mx-auto mb-4" />
-                        <p>Camera tắt</p>
-                      </>
-                    )}
+              {(() => {
+                const shouldShowPlaceholder = !isVideoEnabled || callStatus !== "connected";
+
+                
+                return shouldShowPlaceholder && (
+                  <div className="absolute inset-0 bg-gray-800 flex items-center justify-center z-10">
+                    <div className="text-gray-400 text-center">
+                      {callStatus === "connecting" ||
+                      callStatus === "initializing" ? (
+                        <>
+                          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
+                          <p>Đang kết nối...</p>
+                        </>
+                      ) : (
+                        <>
+                          <div className="w-16 h-16 mx-auto mb-4 bg-gray-600 rounded-full flex items-center justify-center">
+                            <span className="text-2xl text-white font-semibold">
+                              {getUserInitials(userName)} 
+                            </span>
+                          </div>
+                          <p>Bạn đang tắt camera</p>
+                        </>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
 
             <div className="absolute top-4 left-4 bg-black bg-opacity-60 px-3 py-1 rounded-lg">
@@ -826,23 +872,47 @@ export const VideoCallRoom = ({
                 className="w-full h-full absolute inset-0"
               ></div>
 
-              {/* Placeholder khi chưa có video */}
+              {/* Hiển thị avatar khi participant tắt video */}
+              {(() => {
+                const otherParticipantData = participants.find(
+                  (p) => p.id !== userId
+                );
+                const hasOtherParticipant = subscribers.length > 0;
+                const isOtherVideoDisabled =
+                  otherParticipantData && !otherParticipantData.videoEnabled;
+
+
+                // Hiển thị avatar nếu có participant khác và họ tắt video
+                return (
+                  otherParticipantData &&
+                  !otherParticipantData.videoEnabled && (
+                    <div className="absolute inset-0 bg-gray-700 flex items-center justify-center z-10">
+                      <div className="text-gray-400 text-center">
+                        <div className="w-16 h-16 mx-auto mb-4 bg-gray-600 rounded-full flex items-center justify-center">
+                          <span className="text-2xl text-white font-semibold">
+                            {getUserInitials(
+                              otherParticipantData?.name ||
+                                otherParticipant?.fullName ||
+                                otherParticipant?.email ||
+                                "Unknown"
+                            )}
+                          </span>
+                        </div>
+                        <p>Camera tắt</p>
+                      </div>
+                    </div>
+                  )
+                );
+              })()}
+
+              {/* Trường hợp chưa có ai join */}
               {subscribers.length === 0 && (
                 <div className="absolute inset-0 bg-gray-700 flex items-center justify-center z-10">
                   <div className="text-gray-400 text-center">
-                    <div className="w-16 h-16 mx-auto mb-4 bg-gray-600 rounded-full flex items-center justify-center">
-                      <span className="text-2xl">
-                        {getUserInitials(
-                          otherParticipant?.fullName || otherParticipant?.email
-                        )}
-                      </span>
+                    <div className="animate-pulse w-16 h-16 mx-auto mb-4 bg-gray-600 rounded-full flex items-center justify-center">
+                      <Users className="w-8 h-8" />
                     </div>
-                    <p>Đang chờ {isAgent ? "User" : "Agent"}...</p>
-                    {callStatus === "connecting" && (
-                      <div className="mt-2">
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-400 mx-auto"></div>
-                      </div>
-                    )}
+                    <p>Đang chờ người khác tham gia...</p>
                   </div>
                 </div>
               )}
@@ -850,12 +920,8 @@ export const VideoCallRoom = ({
 
             <div className="absolute top-4 left-4 bg-black bg-opacity-60 px-3 py-1 rounded-lg">
               <span className="text-white text-sm font-medium">
-                {participants.length > 1
-                  ? participants.find((p) => p.id !== userId)?.name ||
-                    (isAgent ? "User" : "Agent")
-                  : isAgent
-                  ? "User"
-                  : "Agent"}
+                {participants.find((p) => p.id !== userId)?.name ||
+                  (isAgent ? "User" : "Agent")}
               </span>
             </div>
           </div>
