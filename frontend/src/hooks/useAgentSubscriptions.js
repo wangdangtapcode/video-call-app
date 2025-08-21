@@ -32,7 +32,7 @@ export const useAgentSubscriptions = () => {
   });
 
 
-  const updateAgentStatus = useCallback(
+  const updateUserStatus = useCallback(
     async (newStatus) => {
       if (!user || !isAgent || !token) {
         console.warn("Cannot update status: user is not an agent or no token");
@@ -40,9 +40,9 @@ export const useAgentSubscriptions = () => {
       }
 
       try {
-        console.log("Updating agent status to:", newStatus);
+        console.log("Updating user status to:", newStatus);
 
-        await axios.put(`http://localhost:8081/api/user-metrics/${user.id}/status`, null, {
+        await axios.put(`http://localhost:8081/api/user/${user.id}/status`, null, {
           params: { status: newStatus },
           headers: {
             Authorization: `Bearer ${token}`,
@@ -66,6 +66,6 @@ export const useAgentSubscriptions = () => {
     queueUpdates,
     agentNotifications,
     supportRequests,
-    updateAgentStatus,
+    updateUserStatus,
   };
 };

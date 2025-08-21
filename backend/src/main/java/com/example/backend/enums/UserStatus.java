@@ -1,7 +1,8 @@
 package com.example.backend.enums;
 
-public enum AgentStatus {
+public enum UserStatus {
     ONLINE,
     BUSY,
-    OFFLINE
+    OFFLINE,
+    CALLING,
 }

@@ -1,5 +1,6 @@
 package com.example.backend.model;
 
+import com.example.backend.enums.UserStatus;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -29,11 +30,14 @@ public class User {
     @Column(name = "full_name", length = 200)
     private String fullName;
 
-    @Column(nullable = false, length = 20)
-    private String status = "active";
+    @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
+    private UserStatus status = UserStatus.OFFLINE;
 
-    @ManyToOne
-    @JoinColumn(name = "role_id", nullable = false, foreignKey = @ForeignKey(name = "fk_users_role"))
-    private Role role;
+    @Column(nullable = false)
+    private boolean isActive = true;
+
+    @Column(nullable = false)
+    private String role;
 
 }

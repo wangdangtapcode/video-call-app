@@ -1,6 +1,6 @@
 package com.example.backend.model;
 
-import com.example.backend.enums.AgentStatus;
+import com.example.backend.enums.UserStatus;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -19,10 +19,6 @@ public class UserMetric {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    @Column(nullable = false, length = 20)
-    @Enumerated(EnumType.STRING)
-    private AgentStatus status = AgentStatus.OFFLINE;
 
     @Column
     private Double rating = 0.00;

@@ -1,7 +1,7 @@
 package com.example.backend.service;
 
 import com.example.backend.dto.response.LoginResponse;
-import com.example.backend.enums.AgentStatus;
+import com.example.backend.enums.UserStatus;
 import com.example.backend.exception.AuthenticationException;
 import com.example.backend.exception.ValidationException;
 import com.example.backend.model.User;
@@ -19,16 +19,18 @@ public class AuthService {
     UserRepository userRepository;
 
     @Autowired
-    UserMetricsService userMetricsService;
-
-    @Autowired
     JwtService jwtService;
 
     @Autowired
     WebSocketPresenceHandler presenceHandler;
 
+    @Autowired
+    UserService userService;
+
+    @Autowired
+    UserMetricsService userMetricsService;
+
     public LoginResponse login(String email, String password) {
-        // Validate input
         if (!StringUtils.hasText(email)) {
             throw ValidationException.emailRequired();
         }
@@ -36,20 +38,18 @@ public class AuthService {
             throw ValidationException.passwordRequired();
         }
 
-        User user = userRepository.findByEmailAndPassword(email, password)
+        User user = userRepository.findByEmailAndPasswordAndIsActive(email, password, true)
                 .orElseThrow(AuthenticationException::invalidCredentials);
 
         UserMetric userMetric = null;
 
-        if ("AGENT".equalsIgnoreCase(user.getRole().getName())) {
-            userMetric = userMetricsService.findByUserId(user.getId());
+        userService.updateUserStatus(user.getId(), UserStatus.ONLINE);
 
-            if (userMetric != null) {
-                userMetricsService.updateAgentStatus(user.getId(), AgentStatus.ONLINE);
-            }
+        if ("AGENT".equalsIgnoreCase(user.getRole())) {
+            userMetric = userMetricsService.findByUserId(user.getId());
         }
 
-        String token = jwtService.generateToken(user.getId(), user.getEmail(), user.getRole().getName());
+        String token = jwtService.generateToken(user.getId(), user.getEmail(), user.getRole());
 
         return new LoginResponse(user, userMetric, token);
     }
@@ -63,25 +63,14 @@ public class AuthService {
         }
 
         try {
-            // Extract user info từ token
             Long userId = jwtService.extractUserId(token);
             String role = jwtService.extractRole(token);
             String email = jwtService.extractUsername(token);
 
-            // Log logout event
             System.out.println("User logout: " + email + " (ID: " + userId + ", Role: " + role + ")");
 
-            // Set agent status thành OFFLINE ngay lập tức (chỉ cho agents)
-            if ("AGENT".equalsIgnoreCase(role)) {
-                presenceHandler.setAgentOffline(userId);
-                System.out.println("Agent " + userId + " set to OFFLINE");
-            }
-
-            // TODO: Có thể thêm logic khác như:
-            // - Invalidate token (nếu có blacklist mechanism)
-            // - Log audit trail
-            // - Clean up user sessions
-            // - Send notification
+            presenceHandler.setUserOffline(userId);
+            System.out.println("User " + userId + " set to OFFLINE");
 
         } catch (Exception e) {
             throw new RuntimeException("Logout processing failed: " + e.getMessage(), e);

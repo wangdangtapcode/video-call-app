@@ -10,7 +10,7 @@ export const AgentDashboard = () => {
     useUser();
   const { isConnected } = useWebSocket();
   const navigate = useNavigate();
-  const { supportRequests, updateAgentStatus } = useAgentSubscriptions();
+  const { supportRequests, updateUserStatus } = useAgentSubscriptions();
 
   const [stats, setStats] = useState({
     totalRequests: 24,
@@ -26,7 +26,7 @@ export const AgentDashboard = () => {
     if (isInitialized) {
       if (!isAuthenticated) {
         navigate("/login");
-      } else if (user?.role?.name !== "AGENT") {
+      } else if (user?.role !== "AGENT") {
         // Redirect non-agents to appropriate dashboard
         navigate("/");
       } else {
@@ -82,7 +82,7 @@ export const AgentDashboard = () => {
 
   const handleStatusChange = async (newStatus) => {
     console.log("Agent status changing to:", newStatus);
-    const success = await updateAgentStatus(newStatus);
+    const success = await updateUserStatus(newStatus);
     if (!success) {
       console.error("Failed to update agent status");
       // Có thể hiển thị notification lỗi ở đây
@@ -131,7 +131,7 @@ export const AgentDashboard = () => {
         console.log("Request accepted successfully");
         setShowModal(false);
         setCurrentRequest(null);
-        const success = await updateAgentStatus("BUSY");
+        const success = await updateUserStatus("BUSY");
         if (!success) {
           console.error("Failed to update agent status");
           // Có thể hiển thị notification lỗi ở đây
@@ -201,11 +201,11 @@ export const AgentDashboard = () => {
                 </span>
                 <div
                   className={`w-3 h-3 rounded-full ${getStatusColor(
-                    userMetric.status
+                    user.status
                   )}`}
                 ></div>
                 <span className="text-sm font-medium text-gray-900">
-                  {getStatusText(userMetric.status)}
+                  {getStatusText(user.status)}
                 </span>
                 {!isConnected && (
                   <span className="text-xs text-red-500">(Mất kết nối)</span>
@@ -213,7 +213,7 @@ export const AgentDashboard = () => {
               </div>
 
               <select
-                value={userMetric.status}
+                value={user.status}
                 onChange={(e) => handleStatusChange(e.target.value)}
                 disabled={!isConnected}
                 className="bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"

@@ -1,7 +1,7 @@
 package com.example.backend.service;
 
 import com.example.backend.dto.response.SupportRequestDTO;
-import com.example.backend.enums.AgentStatus;
+import com.example.backend.enums.UserStatus;
 import com.example.backend.enums.SupportRequestStatus;
 import com.example.backend.model.SupportRequest;
 import com.example.backend.model.User;
@@ -33,9 +33,6 @@ public class SupportRequestService {
 
     @Autowired
     private UserMetricRepository userMetricRepository;
-
-    @Autowired
-    private NotificationService notificationService;
 
     @Autowired
     private WebSocketBroadcastService webSocketBroadcastService;
@@ -133,8 +130,7 @@ public class SupportRequestService {
         }
 
         // Kiểm tra agent có online không
-        UserMetric agentMetric = userMetricRepository.findByUserId(request.getPreferredAgentId()).orElse(null);
-        if (agentMetric == null || agentMetric.getStatus() != AgentStatus.ONLINE) {
+        if (preferredAgent.getStatus() != UserStatus.ONLINE) {
             // Agent offline
             handleMatchingTimeout(request, "Agent được chọn hiện không online");
             return;
@@ -178,7 +174,7 @@ public class SupportRequestService {
         supportRequestRepository.save(request);
 
         // Notify user và agent qua WebSocket
-        notificationService.notifyUserChooseAgent(request);
+        webSocketBroadcastService.notifyUserChooseAgent(request);
 
         // Broadcast to system for monitoring
         webSocketBroadcastService.broadcastSystemMessage(
@@ -198,7 +194,7 @@ public class SupportRequestService {
         supportRequestRepository.save(request);
 
         // Notify user qua WebSocket
-        notificationService.notifyRequestTimeout(request, reason);
+        webSocketBroadcastService.notifyRequestTimeout(request, reason);
 
         System.out.println("Request " + request.getId() + " timed out: " + reason);
     }
@@ -232,10 +228,9 @@ public class SupportRequestService {
      * Lấy danh sách agents online
      */
     public List<User> getOnlineAgents() {
-        return userMetricRepository.findAll().stream()
-                .filter(metric -> metric.getStatus() == AgentStatus.ONLINE)
-                .map(UserMetric::getUser)
-                .filter(user -> "AGENT".equalsIgnoreCase(user.getRole().getName()))
+        return userRepository.findAll().stream()
+                .filter(user -> user.getStatus() == UserStatus.ONLINE)
+                .filter(user -> "AGENT".equalsIgnoreCase(user.getRole()))
                 .collect(Collectors.toList());
     }
 
@@ -260,7 +255,7 @@ public class SupportRequestService {
         supportRequestRepository.save(request);
 
         // Notify both parties
-        notificationService.notifyRequestCompleted(request);
+        webSocketBroadcastService.notifyRequestCompleted(request);
     }
 
     public SupportRequest processAgentResponse(Long requestId, Long agentId,
@@ -288,7 +283,7 @@ public class SupportRequestService {
             request.setCompletedAt(LocalDateTime.now());
 
             // Notify user that agent accepted
-            notificationService.notifyAgentAccepted(request);
+            webSocketBroadcastService.notifyAgentAccepted(request);
 
             // Broadcast to both user and agent
             // webSocketBroadcastService.broadcastSupportUpdate(
@@ -309,7 +304,7 @@ public class SupportRequestService {
             request.setTimeoutAt(LocalDateTime.now());
 
             // Notify user that agent rejected
-            notificationService.notifyAgentRejected(request);
+            webSocketBroadcastService.notifyAgentRejected(request);
 
             // // Broadcast to user
             // webSocketBroadcastService.broadcastSupportUpdate(

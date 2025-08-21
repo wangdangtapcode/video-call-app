@@ -30,10 +30,8 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<?> logout(@RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
-            // Extract token từ Authorization header
             String token = jwtService.extractTokenFromHeader(authHeader);
 
-            // Delegate logout logic to AuthService
             authService.logout(token);
 
             Map<String, String> response = new HashMap<>();

@@ -1,6 +1,6 @@
 package com.example.backend.service;
 
-import com.example.backend.enums.AgentStatus;
+import com.example.backend.enums.UserStatus;
 import com.example.backend.model.SupportRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -15,18 +15,110 @@ public class WebSocketBroadcastService {
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
 
+    public void notifyRequestMatched(SupportRequest request) {
+        // Notify user
+        this.broadcastToUser(
+                request.getUser().getId(),
+                "request_matched",
+                "Đã tìm thấy agent! Agent " + request.getAgent().getFullName() + " sẽ hỗ trợ bạn.",
+                request);
+
+        // Notify agent
+        this.broadcastToUser(
+                request.getAgent().getId(),
+                "request_assigned",
+                "Bạn đã được phân công hỗ trợ user " + request.getUser().getFullName(),
+                request);
+
+        System.out.println("Notified user " + request.getUser().getId() + " and agent "
+                + request.getAgent().getId()
+                + " about match");
+    }
+
+    public void notifyUserChooseAgent(SupportRequest request) {
+        // Notify agent
+        this.broadcastToUser(
+                request.getAgent().getId(),
+                "request_assigned",
+                "Bạn nhận được yêu cầu hỗ trợ từ user " + request.getUser().getFullName(),
+                request);
+
+        System.out.println("Notified agent " + request.getAgent().getId() + " about match");
+    }
+
     /**
-     * Broadcast agent status change
+     * Notify user khi request timeout
      */
-    public void broadcastAgentStatusChange(Long userId, AgentStatus status) {
+    public void notifyRequestTimeout(SupportRequest request, String reason) {
+        this.broadcastToUser(
+                request.getUser().getId(),
+                "request_timeout",
+                reason,
+                request);
+
+        System.out.println("Notified user " + request.getUser().getId() + " about timeout: " + reason);
+    }
+
+    /**
+     * Notify khi request completed
+     */
+    public void notifyRequestCompleted(SupportRequest request) {
+        // Notify both user and agent
+        this.broadcastToUser(
+                request.getUser().getId(),
+                "request_completed",
+                "Yêu cầu hỗ trợ đã hoàn thành",
+                request);
+
+        if (request.getAgent() != null) {
+            this.broadcastToUser(
+                    request.getAgent().getId(),
+                    "request_completed",
+                    "Yêu cầu hỗ trợ đã hoàn thành",
+                    request);
+        }
+    }
+
+    /**
+     * Notify user khi agent chấp nhận yêu cầu
+     */
+    public void notifyAgentAccepted(SupportRequest request) {
+        this.broadcastToUser(
+                request.getUser().getId(),
+                "agent_accepted",
+                "Agent " + request.getAgent().getFullName()
+                        + " đã chấp nhận hỗ trợ bạn! Chuẩn bị kết nối video call...",
+                request);
+
+        System.out.println("Notified user " + request.getUser().getId() + " that agent accepted the request");
+    }
+
+    /**
+     * Notify user khi agent từ chối yêu cầu
+     */
+    public void notifyAgentRejected(SupportRequest request) {
+        String message = "Agent " + request.getAgent().getFullName() + " đã từ chối yêu cầu hỗ trợ.";
+
+
+        this.broadcastToUser(
+                request.getUser().getId(),
+                "agent_rejected",
+                message,
+                request);
+
+        System.out.println("Notified user " + request.getUser().getId() + " that agent rejected the request: ");
+    }
+
+    public void broadcastUserStatusChange(Long userId, UserStatus status) {
         Map<String, Object> message = new HashMap<>();
         message.put("userId", userId);
         message.put("status", status);
         message.put("timestamp", System.currentTimeMillis());
-        message.put("type", "AGENT_STATUS_CHANGE");
+        message.put("type", "USER_STATUS_CHANGE");
 
-        messagingTemplate.convertAndSend("/topic/agents/status-changes", message);
+        messagingTemplate.convertAndSend("/topic/users/status-changes", message);
     }
+
 
     /**
      * Broadcast message to specific user

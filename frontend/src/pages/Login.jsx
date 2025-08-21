@@ -36,15 +36,15 @@ export const Login = () => {
       console.log("Token:", token);
       
       // Kết nối WebSocket cho tất cả users (để nhận support requests và notifications)
-      console.log(`${user.role.name} logged in, connecting WebSocket...`);
+      console.log(`${user.role} logged in, connecting WebSocket...`);
       connect(token, user);
 
       // Navigation based on role
-      if (user.role.name === "USER") {
+      if (user.role === "USER") {
         navigate("/");
-      } else if (user.role.name === "AGENT") {
+      } else if (user.role === "AGENT") {
         navigate("/agent");
-      } else if (user.role.name === "ADMIN") {
+      } else if (user.role === "ADMIN") {
         navigate("/admin");
       }
     } catch (error) {
