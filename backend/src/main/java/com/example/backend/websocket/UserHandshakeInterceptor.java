@@ -12,10 +12,7 @@ import org.springframework.web.socket.server.HandshakeInterceptor;
 
 import java.util.Map;
 
-/**
- * Interceptor để xử lý authentication khi WebSocket handshake
- * Sử dụng JWT token để authentication và extract userId
- */
+
 @Component
 public class UserHandshakeInterceptor implements HandshakeInterceptor {
 
@@ -33,7 +30,6 @@ public class UserHandshakeInterceptor implements HandshakeInterceptor {
             logger.info("🔗 WebSocket handshake started - Protocol: {}, URI: {}",
                     clientProtocol, request.getURI());
 
-            // 1. Lấy token từ query parameters (ưu tiên)
             String query = request.getURI().getQuery();
             if (query != null) {
                 String[] params = query.split("&");
@@ -52,7 +48,6 @@ public class UserHandshakeInterceptor implements HandshakeInterceptor {
                 }
             }
 
-            // 2. Nếu không có trong query params, lấy từ headers
             if (token == null) {
                 String authHeader = request.getHeaders().getFirst("Authorization");
                 token = jwtService.extractTokenFromHeader(authHeader);
@@ -61,7 +56,6 @@ public class UserHandshakeInterceptor implements HandshakeInterceptor {
                 }
             }
 
-            // 3. Validate và extract user info từ token
             if (token != null) {
                 try {
                     if (!jwtService.isTokenExpired(token)) {
@@ -78,7 +72,6 @@ public class UserHandshakeInterceptor implements HandshakeInterceptor {
                         logger.info("🎯 WebSocket authenticated - User: {} (ID: {}, Role: {})",
                                 username, userId, role);
 
-                        // Set custom header for @stomp/stompjs compatibility
                         response.getHeaders().add("Access-Control-Allow-Credentials", "true");
 
                         return true;
@@ -91,11 +84,11 @@ public class UserHandshakeInterceptor implements HandshakeInterceptor {
             }
 
             logger.warn("⚠️ WebSocket handshake: No valid token found - allowing anonymous connection");
-            return true; // Vẫn cho phép kết nối, sẽ bỏ qua presence tracking
+            return true;
 
         } catch (Exception e) {
             logger.error("💥 Error during WebSocket handshake", e);
-            return true; // Vẫn cho phép kết nối
+            return true;
         }
     }
 

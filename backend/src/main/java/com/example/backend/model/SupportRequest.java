@@ -1,5 +1,6 @@
 package com.example.backend.model;
 
+import com.example.backend.enums.ResponseStatus;
 import com.example.backend.enums.SupportRequestStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -22,13 +23,15 @@ public class SupportRequest {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Type of support request
-    @Column(nullable = false, length = 20)
-    private String type = "quick_support"; // "quick_support" or "choose_agent"
+    @Column(nullable = false)
+    private String type;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private SupportRequestStatus status = SupportRequestStatus.WAITING;
+
+    @Enumerated(EnumType.STRING)
+    private ResponseStatus response;
 
     // User yêu cầu hỗ trợ
     @ManyToOne(fetch = FetchType.LAZY)

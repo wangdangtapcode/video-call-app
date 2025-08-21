@@ -12,7 +12,7 @@ export default function AdminLayout() {
         if (isInitialized) {
             if (!isAuthenticated) {
                 navigate("/login");
-            } else if (user?.role?.name !== 'ADMIN') {
+            } else if (user?.role !== 'ADMIN') {
                 // Redirect non-agents to appropriate dashboard
                 navigate("/");
             } else {

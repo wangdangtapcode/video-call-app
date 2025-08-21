@@ -61,7 +61,7 @@ export const VideoCall = () => {
 
   const handleCallEnd = () => {
     // Navigate back to appropriate dashboard
-    if (user.role?.name === "AGENT") {
+    if (user.role === "AGENT") {
       navigate("/agent");
     } else {
       navigate("/");
@@ -118,7 +118,7 @@ export const VideoCall = () => {
     <VideoCallRoom
       requestId={requestId}
       callData={callData}
-      userRole={user.role?.name}
+      userRole={user.role}
       userId={user.id}
       userName={user.fullName || user.email}
       onCallEnd={handleCallEnd}

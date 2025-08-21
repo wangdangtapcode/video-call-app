@@ -428,14 +428,17 @@ export const VideoCallRoom = ({
           console.log(
             `User ${data.userId} toggled video: ${data.videoEnabled}`
           );
-          console.log('Current participants before signal update:', participants);
+          console.log(
+            "Current participants before signal update:",
+            participants
+          );
           setParticipants((prev) => {
             const updated = prev.map((p) =>
               p.id === data.userId
                 ? { ...p, videoEnabled: data.videoEnabled }
                 : p
             );
-            console.log('Updated participants after signal:', updated);
+            console.log("Updated participants after signal:", updated);
             return updated;
           });
           break;
@@ -474,15 +477,19 @@ export const VideoCallRoom = ({
       const newVideoState = openViduService.current.toggleVideo();
       setIsVideoEnabled(newVideoState);
 
-      console.log(`Video toggled: ${newVideoState ? 'enabled' : 'disabled'} for user ${userId}`);
-      console.log('Current participants before update:', participants);
+      console.log(
+        `Video toggled: ${
+          newVideoState ? "enabled" : "disabled"
+        } for user ${userId}`
+      );
+      console.log("Current participants before update:", participants);
 
       // Update own participant state
       setParticipants((prev) => {
         const updated = prev.map((p) =>
           p.id === userId ? { ...p, videoEnabled: newVideoState } : p
         );
-        console.log('Updated participants:', updated);
+        console.log("Updated participants:", updated);
         return updated;
       });
 
@@ -492,7 +499,9 @@ export const VideoCallRoom = ({
         videoEnabled: newVideoState,
       });
 
-      console.log(`Sent signal: video-toggle for userId ${userId}, enabled: ${newVideoState}`);
+      console.log(
+        `Sent signal: video-toggle for userId ${userId}, enabled: ${newVideoState}`
+      );
     } catch (error) {
       console.error("Error toggling video:", error);
     }
@@ -817,30 +826,32 @@ export const VideoCallRoom = ({
 
               {/* Video placeholder when video is disabled or loading */}
               {(() => {
-                const shouldShowPlaceholder = !isVideoEnabled || callStatus !== "connected";
+                const shouldShowPlaceholder =
+                  !isVideoEnabled || callStatus !== "connected";
 
-                
-                return shouldShowPlaceholder && (
-                  <div className="absolute inset-0 bg-gray-800 flex items-center justify-center z-10">
-                    <div className="text-gray-400 text-center">
-                      {callStatus === "connecting" ||
-                      callStatus === "initializing" ? (
-                        <>
-                          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
-                          <p>Đang kết nối...</p>
-                        </>
-                      ) : (
-                        <>
-                          <div className="w-16 h-16 mx-auto mb-4 bg-gray-600 rounded-full flex items-center justify-center">
-                            <span className="text-2xl text-white font-semibold">
-                              {getUserInitials(userName)} 
-                            </span>
-                          </div>
-                          <p>Bạn đang tắt camera</p>
-                        </>
-                      )}
+                return (
+                  shouldShowPlaceholder && (
+                    <div className="absolute inset-0 bg-gray-800 flex items-center justify-center z-10">
+                      <div className="text-gray-400 text-center">
+                        {callStatus === "connecting" ||
+                        callStatus === "initializing" ? (
+                          <>
+                            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
+                            <p>Đang kết nối...</p>
+                          </>
+                        ) : (
+                          <>
+                            <div className="w-16 h-16 mx-auto mb-4 bg-gray-600 rounded-full flex items-center justify-center">
+                              <span className="text-2xl text-white font-semibold">
+                                {getUserInitials(userName)}
+                              </span>
+                            </div>
+                            <p>Bạn đang tắt camera</p>
+                          </>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  )
                 );
               })()}
             </div>
@@ -880,7 +891,6 @@ export const VideoCallRoom = ({
                 const hasOtherParticipant = subscribers.length > 0;
                 const isOtherVideoDisabled =
                   otherParticipantData && !otherParticipantData.videoEnabled;
-
 
                 // Hiển thị avatar nếu có participant khác và họ tắt video
                 return (
@@ -1006,24 +1016,28 @@ export const VideoCallRoom = ({
           )}
 
           {/* Recording */}
-          <button
-            onClick={toggleRecording}
-            disabled={callStatus !== "connected"}
-            className={`p-4 rounded-full transition-all duration-200 ${
-              isRecording
-                ? "bg-red-600 text-white hover:bg-red-700 animate-pulse"
-                : "bg-gray-700 text-white hover:bg-gray-600"
-            } ${
-              callStatus !== "connected" ? "opacity-50 cursor-not-allowed" : ""
-            }`}
-            title={isRecording ? "Dừng ghi hình" : "Bắt đầu ghi hình"}
-          >
-            {isRecording ? (
-              <Square className="w-6 h-6" />
-            ) : (
-              <Circle className="w-6 h-6" />
-            )}
-          </button>
+          {isAgent && (
+            <button
+              onClick={toggleRecording}
+              disabled={callStatus !== "connected"}
+              className={`p-4 rounded-full transition-all duration-200 ${
+                isRecording
+                  ? "bg-red-600 text-white hover:bg-red-700 animate-pulse"
+                  : "bg-gray-700 text-white hover:bg-gray-600"
+              } ${
+                callStatus !== "connected"
+                  ? "opacity-50 cursor-not-allowed"
+                  : ""
+              }`}
+              title={isRecording ? "Dừng ghi hình" : "Bắt đầu ghi hình"}
+            >
+              {isRecording ? (
+                <Square className="w-6 h-6" />
+              ) : (
+                <Circle className="w-6 h-6" />
+              )}
+            </button>
+          )}
 
           {/* Leave Call */}
           <button

@@ -1,7 +1,7 @@
 package com.example.backend.websocket;
 
-import com.example.backend.enums.AgentStatus;
-import com.example.backend.service.UserMetricsService;
+import com.example.backend.enums.UserStatus;
+import com.example.backend.service.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,7 +10,6 @@ import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.messaging.SessionConnectEvent;
-import org.springframework.web.socket.messaging.SessionConnectedEvent;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
 import java.time.Instant;
@@ -29,7 +28,7 @@ public class WebSocketPresenceHandler {
     private static final long OFFLINE_DELAY_SECONDS = 15;
 
     @Autowired
-    private UserMetricsService userMetricsService;
+    private UserService userService;
 
     @Autowired
     private TaskScheduler taskScheduler;
@@ -80,7 +79,7 @@ public class WebSocketPresenceHandler {
                         logger.error("Error in retry for session: {}", sessionId, e);
                     }
                 }, Instant.now().plusMillis(100));
-                return; // Exit early, will handle in retry
+                return;
             }
 
             handleUserConnection(userId);
@@ -91,17 +90,14 @@ public class WebSocketPresenceHandler {
 
     private void handleUserConnection(Long userId) {
         try {
-            // Tăng số lượng sessions của user
             userSessionCounts.merge(userId, 1, Integer::sum);
             int sessionCount = userSessionCounts.get(userId);
 
-            // Hủy tác vụ offline nếu có
             cancelOfflineTask(userId);
 
-            // Set status thành ONLINE nếu user chưa online
-            AgentStatus currentStatus = userMetricsService.getAgentStatus(userId);
-            if (currentStatus == AgentStatus.OFFLINE) {
-                userMetricsService.updateAgentStatus(userId, AgentStatus.ONLINE);
+            UserStatus currentStatus = userService.getUserStatus(userId);
+            if (currentStatus == UserStatus.OFFLINE) {
+                userService.updateUserStatus(userId, UserStatus.ONLINE);
                 logger.info("🟢 Agent {} is now ONLINE (reconnected)", userId);
             } else {
                 logger.info("🔄 Agent {} already ONLINE, session count: {}", userId, sessionCount);
@@ -166,7 +162,7 @@ public class WebSocketPresenceHandler {
             try {
                 // Kiểm tra lại xem user có kết nối lại không
                 if (!userSessionCounts.containsKey(userId)) {
-                    userMetricsService.updateAgentStatus(userId, AgentStatus.OFFLINE);
+                    userService.updateUserStatus(userId, UserStatus.OFFLINE);
                     logger.info("Agent {} set to OFFLINE after disconnect timeout", userId);
                 }
                 // Clean up
@@ -233,7 +229,7 @@ public class WebSocketPresenceHandler {
     /**
      * Method để manually set agent offline (được gọi từ logout)
      */
-    public void setAgentOffline(Long userId) {
+    public void setUserOffline(Long userId) {
         // Hủy tác vụ offline nếu có
         cancelOfflineTask(userId);
 
@@ -241,7 +237,7 @@ public class WebSocketPresenceHandler {
         userSessionCounts.remove(userId);
 
         // Set status thành OFFLINE ngay lập tức
-        userMetricsService.updateAgentStatus(userId, AgentStatus.OFFLINE);
+        userService.updateUserStatus(userId, UserStatus.OFFLINE);
 
         logger.info("Agent {} manually set to OFFLINE", userId);
     }

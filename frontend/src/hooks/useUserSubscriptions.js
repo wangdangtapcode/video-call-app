@@ -64,10 +64,10 @@ export const useUserSubscriptions = () => {
   });
 
   // Agent status changes (moved from useAgentPresence)
-  useRoleChannelListener("AGENT_STATUS_CHANGE", (data) => {
+  useRoleChannelListener("USER_STATUS_CHANGE", (data) => {
     try {
       const { userId, status, timestamp, fullName, email } = data;
-      console.log("Agent status change received:", {
+      console.log("User status change received:", {
         userId,
         status,
         timestamp,
@@ -79,12 +79,12 @@ export const useUserSubscriptions = () => {
       }
       setTimeout(() => {
         console.log(
-          "Agent status changed, reloading online agents list after a short delay..."
+          "User status changed, reloading online agents list after a short delay..."
         );
         loadOnlineAgents();
       }, 500);
     } catch (error) {
-      console.error("Error handling agent status change:", error);
+      console.error("Error handling user status change:", error);
     }
   });
 

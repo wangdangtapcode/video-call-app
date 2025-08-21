@@ -44,8 +44,8 @@ const userReducer = (state, action) => {
     case USER_ACTIONS.UPDATE_STATUS:
       return {
         ...state,
-        userMetric: {
-          ...state.userMetric,
+        user: {
+          ...state.user,
           status: action.payload
         }
       };
@@ -136,7 +136,7 @@ useEffect(() => {
     isLoading: state.isLoading,
     isInitialized: state.isInitialized,
     isAuthenticated: !!state.user,
-    isAgent: !!state.userMetric,
+    isAgent: state.user?.role === "AGENT",
     // Actions
     login,
     logout,
