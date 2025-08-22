@@ -42,7 +42,7 @@ export const WebSocketProvider = ({ children }) => {
 
     switch (role) {
       case "USER":
-        return [...baseChannels, "/topic/users/status-changes"];
+        return [...baseChannels, "/topic/users/status-changes", `/topic/${userId}/queue/force-logout`];
       case "AGENT":
         return [...baseChannels];
       case "ADMIN":
@@ -238,21 +238,30 @@ export const WebSocketProvider = ({ children }) => {
   );
 
   const handleRoleChannelMessage = useCallback((topic, message) => {
-    try {
-      const data = JSON.parse(message.body);
-      const customEvent = new CustomEvent("roleChannelMessage", {
-        detail: {
-          topic,
-          type: data.type,
-          data: data.data || data,
-          timestamp: Date.now(),
-        },
-      });
-      window.dispatchEvent(customEvent);
-    } catch (error) {
-      console.error("Error parsing role channel message:", error);
+  try {
+    const data = JSON.parse(message.body);
+
+    if (data === "FORCE_LOGOUT" || data.type === "FORCE_LOGOUT") {
+      console.warn("🚨 FORCE_LOGOUT received!");
+      localStorage.removeItem("token");
+      sessionStorage.removeItem("userData");
+      window.location.href = "/login";
     }
-  }, []);
+
+    const customEvent = new CustomEvent("roleChannelMessage", {
+      detail: {
+        topic,
+        type: data.type,
+        data: data.data || data,
+        timestamp: Date.now(),
+      },
+    });
+    window.dispatchEvent(customEvent);
+  } catch (error) {
+    console.error("Error parsing role channel message:", error);
+  }
+}, []);
+
 
   const subscribe = useCallback((topic, callback) => {
     if (!topic || !callback) {

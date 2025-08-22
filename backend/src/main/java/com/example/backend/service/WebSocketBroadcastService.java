@@ -177,6 +177,14 @@ public class WebSocketBroadcastService {
         messagingTemplate.convertAndSend("/topic/system", data);
     }
 
+    public void broadcastBlockUserMessage(Long id) {
+        messagingTemplate.convertAndSend(
+                "/topic/"+id+"/queue/force-logout",      // queue dành riêng cho user đó
+                "FORCE_LOGOUT"
+        );
+        System.out.println("Block user " + id);
+    }
+
     /**
      * Broadcast notification (placeholder for compatibility)
      */
@@ -184,4 +192,6 @@ public class WebSocketBroadcastService {
         // This method exists for compatibility with existing code
         System.out.println("Broadcasting notification: " + notification);
     }
+
+
 }

@@ -27,6 +27,7 @@ public class UserService {
     private WebSocketBroadcastService webSocketBroadcastService;
     @Autowired
     private UserMetricRepository userMetricRepository;
+
     @Transactional
     public void updateUserStatus(Long userId, UserStatus status) {
         Optional<User> userOpt = userRepository.findById(userId);
@@ -99,6 +100,7 @@ public class UserService {
                 .orElseThrow(() -> BusinessException.userNotFound(id));
         user.setActive(false);
         User savedUser = userRepository.save(user);
+        webSocketBroadcastService.broadcastBlockUserMessage(id);
         return userMapper.toResponse(savedUser);
     }
 

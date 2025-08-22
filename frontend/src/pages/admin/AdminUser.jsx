@@ -52,7 +52,7 @@ export default function AdminUser() {
         const data = JSON.parse(message.body);
         setUsers((prev) =>
           prev.map((u) =>
-            u.id === data.userId ? { ...u, status: data.status } : u
+            u.id === data.userId ? { ...u, status: data.status} : u
           )
         );
       } catch (err) {
@@ -86,7 +86,12 @@ export default function AdminUser() {
   const handleBlockUser = async (userId) => {
     try {
       await axios.put(`${API_BASE_URL}/user/${userId}/block`);
-      fetchUsers(searchKeyword);
+      // fetchUsers(searchKeyword);
+      setUsers((prev) =>
+          prev.map((u) =>
+            u.id === userId ? { ...u, active: false, status: "OFFLINE"} : u
+          )
+        );
     } catch (err) {
       console.error(err);
     }
