@@ -46,7 +46,7 @@ export const WebSocketProvider = ({ children }) => {
       case "AGENT":
         return [...baseChannels];
       case "ADMIN":
-        return [...baseChannels];
+        return [...baseChannels, "/topic/users/status-changes"];
       default:
         return baseChannels;
     }
@@ -391,11 +391,12 @@ export const WebSocketProvider = ({ children }) => {
       connectionStatus,
       userRole,
       userId,
-      sendMessage,
+      sendMessage,  
       subscribe,
       unsubscribe,
       connect,
       disconnect,
+      client: stompClientRef.current,
     }),
     [
       isConnected,
