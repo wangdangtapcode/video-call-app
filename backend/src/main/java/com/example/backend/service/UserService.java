@@ -94,6 +94,22 @@ public class UserService {
         return userMapper.toResponse(user);
     }
 
+    public UserResponse blockUserById(Long id){
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> BusinessException.userNotFound(id));
+        user.setActive(false);
+        User savedUser = userRepository.save(user);
+        return userMapper.toResponse(savedUser);
+    }
+
+    public UserResponse unBlockUserById(Long id){
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> BusinessException.userNotFound(id));
+        user.setActive(true);
+        User savedUser = userRepository.save(user);
+        return userMapper.toResponse(savedUser);
+    }
+
 //    public UserResponse updateUserById(Long id, UserRequest userRequest){
 //        User user = userRepository.findById(id)
 //                .orElseThrow(() -> BusinessException.userNotFound(id));

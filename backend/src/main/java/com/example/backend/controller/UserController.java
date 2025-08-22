@@ -46,6 +46,16 @@ public class UserController {
     public ResponseEntity<UserResponse> getUserById(@PathVariable Long id){
         return ResponseEntity.ok(userService.getUserById(id));
     }
+
+    @PutMapping("/{id}/block")
+    public ResponseEntity<UserResponse> blockUserById(@PathVariable Long id){
+        return ResponseEntity.ok(userService.blockUserById(id));
+    }
+
+    @PutMapping("/{id}/unblock")
+    public ResponseEntity<UserResponse> unBlockUserById(@PathVariable Long id){
+        return ResponseEntity.ok(userService.unBlockUserById(id));
+    }
 //
 //    @PutMapping("/{id}")
 //    public ResponseEntity<UserResponse> updateUserById(@PathVariable Long id, @RequestBody UserRequest userRequest){
