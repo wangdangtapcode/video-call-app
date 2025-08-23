@@ -1,6 +1,7 @@
 package com.example.backend.service;
 
 import com.example.backend.dto.request.UserRequest;
+import com.example.backend.dto.response.TotalResponse;
 import com.example.backend.dto.response.UserResponse;
 import com.example.backend.enums.UserStatus;
 //import com.example.backend.mapper.UserMapper;
@@ -112,6 +113,23 @@ public class UserService {
         return userMapper.toResponse(savedUser);
     }
 
+    public TotalResponse getTotalUsers(){
+        Long totalUser = userRepository.countByRoleAndStatus("USER", UserStatus.ONLINE);
+
+        return new TotalResponse(totalUser);
+
+    }
+
+    public TotalResponse getTotalAgents(){
+        Long totalUser = userRepository.countByRoleAndStatus("AGENT", UserStatus.ONLINE);
+
+        return new TotalResponse(totalUser);
+    }
+
+    public TotalResponse getTotalCall(){
+        Long totalUser = userRepository.countByRoleAndStatus("AGENT", UserStatus.CALLING);
+        return new TotalResponse(totalUser);
+    }
 //    public UserResponse updateUserById(Long id, UserRequest userRequest){
 //        User user = userRepository.findById(id)
 //                .orElseThrow(() -> BusinessException.userNotFound(id));

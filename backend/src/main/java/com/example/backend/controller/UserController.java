@@ -2,6 +2,7 @@ package com.example.backend.controller;
 
 import com.example.backend.dto.request.UserRequest;
 import com.example.backend.dto.response.DeleteResponse;
+import com.example.backend.dto.response.TotalResponse;
 import com.example.backend.dto.response.UserResponse;
 import com.example.backend.enums.UserStatus;
 import com.example.backend.service.UserService;
@@ -55,6 +56,11 @@ public class UserController {
     @PutMapping("/{id}/unblock")
     public ResponseEntity<UserResponse> unBlockUserById(@PathVariable Long id){
         return ResponseEntity.ok(userService.unBlockUserById(id));
+    }
+
+    @GetMapping("/total")
+    public ResponseEntity<TotalResponse> getTotalUser(){
+        return ResponseEntity.ok(userService.getTotalUsers());
     }
 //
 //    @PutMapping("/{id}")
