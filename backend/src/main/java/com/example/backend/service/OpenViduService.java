@@ -1,14 +1,22 @@
 package com.example.backend.service;
 
+import com.example.backend.dto.response.RecordingDTO;
+import com.example.backend.model.RecordingStatus;
+import com.example.backend.repository.RecordingRepository;
 import io.openvidu.java.client.*;
+import io.openvidu.java.client.RecordingProperties;
 import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 public class OpenViduService {
@@ -20,6 +28,12 @@ public class OpenViduService {
     private String OPENVIDU_SECRET;
 
     private OpenVidu openVidu;
+
+    @Autowired
+    private RecordService recordService;
+
+    @Autowired
+    private RecordingRepository recordingRepository;
 
     @PostConstruct
     public void init() {
@@ -136,11 +150,56 @@ public class OpenViduService {
         }
     }
 
-    public void startRecording(String sessionId) {
-        // TODO: Implement recording functionality
+    public RecordingDTO startRecording(String sessionId, Long agentId, Long userId) throws  OpenViduHttpException, OpenViduJavaClientException {
+
+
+        RecordingProperties properties = new RecordingProperties.Builder()
+                .outputMode(Recording.OutputMode.COMPOSED)
+                .recordingLayout(RecordingLayout.BEST_FIT)
+                .hasAudio(true)
+                .hasVideo(true)
+                .build();
+        Recording recording = this.openVidu.startRecording(sessionId,properties);
+        com.example.backend.model.Recording dbRecording = recordService.createRecording(recording.getId(), sessionId, agentId,userId);
+        recordingRepository.save(dbRecording);
+        recordService.updateRecordingStatus(dbRecording.getRecordingId(), RecordingStatus.STARTED);
+        return RecordingDTO.builder()
+                .recordingId(recording.getId())
+                .sessionId(recording.getSessionId())
+                .status(recording.getStatus().name())
+                .databaseId(dbRecording.getId())
+                .build();
     }
 
-    public void stopRecording(String recordingId) {
-        // TODO: Implement recording functionality
+    public RecordingDTO stopRecording(String recordingId) throws OpenViduJavaClientException, OpenViduHttpException{
+        Recording recording = this.openVidu.stopRecording(recordingId);
+
+        com.example.backend.model.Recording dbRecording = recordService.updateRecordingDetails(recordingId,recording);
+        recordService.updateRecordingStatus(recordingId,RecordingStatus.STOPPED);
+        recordService.uploadToS3(recording);
+//        deleteLocalRecording(recordingId);
+
+        return RecordingDTO.builder()
+                .recordingId(recording.getId())
+                .sessionId(recording.getSessionId())
+                .status(dbRecording.getStatus().toString())
+                .url(dbRecording.getS3Url())
+                .duration(recording.getDuration())
+                .fileSize(recording.getSize())
+                .databaseId(dbRecording.getId())
+                .build();
+
+
+    }
+
+
+    public void deleteLocalRecording(String recordingId){
+        try{
+            openVidu.deleteRecording(recordingId);
+        } catch (Exception e){
+            e.printStackTrace();
+            System.out.println("Error in deleting local record: " +  e.getMessage());
+        }
+        return;
     }
 }

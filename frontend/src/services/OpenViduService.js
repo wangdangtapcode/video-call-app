@@ -1,5 +1,6 @@
 import { OpenVidu } from "openvidu-browser";
 import axios from "axios";
+import { head } from "framer-motion/client";
 
 class OpenViduService {
   constructor() {
@@ -10,6 +11,7 @@ class OpenViduService {
     this.mySessionId = null;
     this.myUserName = null;
     this.token = null;
+    this.recordingId = null;
 
     console.log("OpenViduService initializedddddddddddddddddddddd");
     // OpenVidu Server URL (chú ý: HTTPS cho production)
@@ -553,6 +555,46 @@ class OpenViduService {
     } catch (error) {
       console.error("Backend server connection check failed:", error);
       return false;
+    }
+  }
+
+    /**
+   * Recording Function
+   */
+  async startRecording(){
+    try{
+      console.log("Start recording with sessionId: ", this.mySessionId)
+      const response = await axios.post(
+        `${this.APPLICATION_SERVER_URL}/api/openvidu/recording/start/${this.mySessionId}?agentId=1&userId=2`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      )
+      this.recordingId = response.data.recordingId;
+      console.log("Recording ID:", this.recordingId);
+      console.log("Recording started:", response.data);
+      return 
+    } catch (error){
+      throw error
+    }
+  }
+  async stopRecording(){
+    try{
+      console.log("Stop recording with id: ", this.recordingId)
+      const response = await axios.post(
+        `${this.APPLICATION_SERVER_URL}/api/openvidu/recording/stop/${this.recordingId}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      )
+      console.log("Recording stopped:", response.data);
+      return response.data;
+    } catch (error){
+      throw error
     }
   }
 }
