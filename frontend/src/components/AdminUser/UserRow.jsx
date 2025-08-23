@@ -1,5 +1,5 @@
 // src/components/admin/UserRow.jsx
-export default function UserRow({ user, index, onBlock, onUnblock, onDelete }) {
+export default function UserRow({ user, index, onBlock, onUnblock, onDelete, onRowClick }) {
   const handleBlock = (id) => {
     if (window.confirm("Are you sure you want to block this user?")) {
       onBlock(id);
@@ -63,7 +63,15 @@ export default function UserRow({ user, index, onBlock, onUnblock, onDelete }) {
         )}
       </td>
       <td className="p-3 border-b flex gap-2 justify-center">
+        {onRowClick && (
+      <button 
+        onClick={() => onRowClick(user.id)} 
+        className="px-3 py-1 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition"
+      >
+        View
+      </button>)}
         {user.active ? (
+
           <button
             onClick={() => handleBlock(user.id)}
             className="px-3 py-1 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition"

@@ -9,6 +9,7 @@ import AdminUser from "../pages/admin/AdminUser";
 import AdminLayout from "../layouts/AdminLayout";
 import { VideoCall } from "../pages/VideoCall";
 import AdminRecord from "../pages/admin/AdminRecord";
+import AdminAgent from "../pages/admin/AdminAgent";
 
 
 export const Routers = () => {
@@ -28,6 +29,7 @@ export const Routers = () => {
           <Route index element={<AdminDashboard />} />
           <Route path="user" element={<AdminUser/>}/>
           <Route path="record" element={<AdminRecord />} />
+          <Route path="agent" element={<AdminAgent/>}/>
         </Route>
 
 

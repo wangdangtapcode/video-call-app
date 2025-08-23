@@ -1,8 +1,10 @@
 package com.example.backend.mapper;
 
 import com.example.backend.dto.request.UserRequest;
+import com.example.backend.dto.response.AgentResponse;
 import com.example.backend.dto.response.UserResponse;
 import com.example.backend.model.User;
+import com.example.backend.model.UserMetric;
 import org.mapstruct.*;
 
 import java.text.Normalizer;
@@ -23,6 +25,14 @@ public interface UserMapper {
 
     UserResponse toResponse(User user);
 
+    @Mapping(source = "user.id", target = "id")
+    @Mapping(source = "user.fullName", target = "fullName")
+    @Mapping(source = "user.email", target = "email")
+    @Mapping(source = "user.status", target = "status")
+    @Mapping(source = "rating", target = "rating")
+    @Mapping(source = "totalCalls", target = "totalCall")
+    @Mapping(source = "totalCallTime", target = "totalCallTime")
+    AgentResponse toAgentResponse(UserMetric userMetric);
 //    void updateUserFromRequest(UserRequest userRequest, @MappingTarget User user);
 
     @Named("toEmail")

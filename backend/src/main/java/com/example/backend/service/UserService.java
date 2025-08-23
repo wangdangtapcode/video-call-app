@@ -1,6 +1,7 @@
 package com.example.backend.service;
 
 import com.example.backend.dto.request.UserRequest;
+import com.example.backend.dto.response.AgentResponse;
 import com.example.backend.dto.response.TotalResponse;
 import com.example.backend.dto.response.UserResponse;
 import com.example.backend.enums.UserStatus;
@@ -129,6 +130,22 @@ public class UserService {
     public TotalResponse getTotalCall(){
         Long totalUser = userRepository.countByRoleAndStatus("AGENT", UserStatus.CALLING);
         return new TotalResponse(totalUser);
+    }
+
+    public List<UserResponse> getAllAgent(){
+        List<User> listUser = userRepository.findByRole("AGENT");
+        return listUser.stream()
+                .map(userMapper::toResponse)
+                .toList();
+    }
+
+    public AgentResponse getDetailAgentById(Long id){
+        User user = userRepository.findByIdAndRole(id, "AGENT")
+                .orElseThrow(() -> BusinessException.userNotFound(id));
+        UserMetric userMetric = userMetricRepository.findByUserId(user.getId())
+                .orElseThrow(() -> BusinessException.userNotFound(id));
+
+        return userMapper.toAgentResponse(userMetric);
     }
 //    public UserResponse updateUserById(Long id, UserRequest userRequest){
 //        User user = userRepository.findById(id)

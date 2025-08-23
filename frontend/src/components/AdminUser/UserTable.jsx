@@ -1,7 +1,7 @@
 // src/components/admin/UserTable.jsx
 import UserRow from "./UserRow";
 
-export default function UserTable({ users, isLoading, onBlock, onUnblock, onDelete }) {
+export default function UserTable({ users, isLoading, onBlock, onUnblock, onDelete, onRowClick }) {
   if (isLoading) return <p className="p-4 text-gray-600">Loading users...</p>;
 
   return (
@@ -27,6 +27,7 @@ export default function UserTable({ users, isLoading, onBlock, onUnblock, onDele
               onBlock={onBlock}
               onUnblock={onUnblock}
               onDelete={onDelete}
+              onRowClick={onRowClick}
             />
           ))}
         </tbody>
