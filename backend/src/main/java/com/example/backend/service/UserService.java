@@ -147,6 +147,13 @@ public class UserService {
 
         return userMapper.toAgentResponse(userMetric);
     }
+
+    public List<AgentResponse> getAllDetailAgent(){
+        List<UserMetric> userMetric = userMetricRepository.findAll();
+        return userMetric.stream()
+                .map(userMapper:: toAgentResponse)
+                .toList();
+    }
 //    public UserResponse updateUserById(Long id, UserRequest userRequest){
 //        User user = userRepository.findById(id)
 //                .orElseThrow(() -> BusinessException.userNotFound(id));
