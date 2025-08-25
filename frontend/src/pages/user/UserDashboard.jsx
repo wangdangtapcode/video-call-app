@@ -30,6 +30,37 @@ export const UserDashboard = () => {
   const { notifications, loadOnlineAgents, onlineAgents, isLoadingAgents } =
     useUserSubscriptions();
 
+  const { client, disconnect } = useWebSocket();
+
+  useEffect(() => {
+    if (!client?.connected) {
+      console.log("WebSocket not connected, cannot subscribe to user queue");
+      return;
+    }
+
+    // Subscribe tới user-specific queue
+    const subscription = client.subscribe(`/topic/${user.id}/queue/force-logout`, (message) => {
+          console.log("Received message:", message);
+
+      try {
+        if (message.body === "FORCE_LOGOUT") {
+          console.warn("🚨 FORCE_LOGOUT received!");
+
+          // Ngắt kết nối WebSocket
+          disconnect();
+
+          // Thông báo cho user
+          alert("You have been logged out by admin.");
+
+          logout();
+        }
+      } catch (err) {
+        console.error("Failed to handle FORCE_LOGOUT message", err);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [client, disconnect, navigate]);
   useEffect(() => {
     if (isInitialized) {
       if (!isAuthenticated) {

@@ -10,6 +10,7 @@ import AdminLayout from "../layouts/AdminLayout";
 import { VideoCall } from "../pages/VideoCall";
 import { PermissionRequest } from "../pages/PermissionRequest";
 import AdminRecord from "../pages/admin/AdminRecord";
+import AdminAgent from "../pages/admin/AdminAgent";
 
 
 export const Routers = () => {
@@ -28,7 +29,11 @@ export const Routers = () => {
           {/*Admin Dashboard*/}
           <Route index element={<AdminDashboard />} />
           <Route path="user" element={<AdminUser/>}/>
-          <Route path="record" element={<AdminRecord />} />
+          <Route path="record">
+            <Route index element={<AdminRecord />} />
+            <Route path=":folderKey/*" element={<AdminRecord />} />
+          </Route>
+          <Route path="agent" element={<AdminAgent/>}/>
         </Route>
 
 

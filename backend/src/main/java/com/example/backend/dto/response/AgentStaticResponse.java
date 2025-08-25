@@ -4,15 +4,11 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+@Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Data
-public class AgentResponse {
-    private Long id;
-    private String email;
-    private String fullName;
-    private String status;
-    private Double rating;
-    private Integer totalCall;
+public class AgentStaticResponse {
+    private Double avgRating;
+    private Integer totalCalls;
     private Long totalCallTime;
 }
