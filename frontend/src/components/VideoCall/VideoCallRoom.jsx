@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import ScreenshotPreview from "../Screenshot/ScreenshotPreview";
 import {
   Video,
   VideoOff,
@@ -15,9 +16,12 @@ import {
   Users,
   MessageSquare,
   AlertTriangle,
+  Image as ImageIcon
 } from "lucide-react";
 import { useWebSocket } from "../../context/WebSocketContext";
 import OpenViduService from "../../services/OpenViduService";
+import ImageEditor from "../Screenshot/ImageEditor";
+import { p } from "framer-motion/client";
 
 export const VideoCallRoom = ({
   requestId,
@@ -50,6 +54,19 @@ export const VideoCallRoom = ({
   const [recordingData, setRecordingData] = useState(null);
   const [showRecordingResult, setShowRecordingResult] = useState(false);
 
+  // State cho ảnh
+  const [screenshotData, setScreenshotData] = useState(null);
+  const [showScreenshotPreview, setShowScreenshotPreview] = useState(false); 
+  const [agentImageData, setAgentImageData] = useState(null);
+  const [showAgentImagePreview, setShowAgentImagePreview] = useState(false);
+  const [showImageEditor, setShowImageEditor] = useState(false);
+  const [editingImageData, setEditingImageData] = useState(null);
+  const [showSendSuccessPopup, setShowSendSuccessPopup] = useState(false); // Popup gửi thành công
+  const [showReceivedImagePopup, setShowReceivedImagePopup] = useState(false); // Popup nhận ảnh
+  const [receivedImageData, setReceivedImageData] = useState(null);
+  const [sentImages, setSentImages] = useState([]); // Danh sách ảnh đã gửi (agent)
+  const [receivedImages, setReceivedImages] = useState([]); // Danh sách ảnh đã nhận (user)
+  const [showImagesPanel, setShowImagesPanel] = useState(false); // Panel danh sách ảnh
   // Refs
   const userVideoRef = useRef(null);
   const subscribersRef = useRef(null);
@@ -65,6 +82,27 @@ export const VideoCallRoom = ({
   // Determine if current user is agent or user
   const isAgent = userRole === "AGENT";
   const otherParticipant = isAgent ? callData?.user : callData?.agent;
+
+  const compressImage = (imageData, maxWidth = 800, maxHeight = 600) => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let width = img.width;
+        let height = img.height;
+        if (width > maxWidth || height > maxHeight) {
+          const ratio = Math.min(maxWidth / width, maxHeight / height);
+          width *= ratio;
+          height *= ratio;
+        }
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", 0.7)); // Giảm chất lượng
+      };
+      img.src = imageData;
+    });
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -471,6 +509,17 @@ export const VideoCallRoom = ({
             setShowRecordingResult(true);
           }
           break;
+        case "signal:image":
+          if (!isAgent) {
+            const newImage = {
+              id: Date.now(),
+              data: data.imageData,
+              timestamp: new Date().toLocaleString(),
+            };
+            setReceivedImages((prev) => [...prev, newImage]);
+            setReceivedImageData(data.imageData);
+            setShowReceivedImagePopup(true);
+          }
         default:
           console.log("Unknown signal type:", event.type);
       }
@@ -570,17 +619,71 @@ export const VideoCallRoom = ({
   const takeScreenshot = () => {
     if (isAgent) {
       console.log("Taking screenshot...");
-      // Implement screenshot logic for agents
+      const videoElement = subscribersRef.current?.querySelector('video');
+      if (videoElement) {
+        const canvas = document.createElement("canvas");
+        canvas.width = videoElement.videoWidth;
+        canvas.height = videoElement.videoHeight;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+        const screenshotData = canvas.toDataURL("image/png");
+        console.log("Screenshot taken:", screenshotData);
+        setScreenshotData(screenshotData);
+        setShowScreenshotPreview(true); // Hiển thị modal preview
 
-      if (isWebSocketConnected) {
-        sendMessage(`/app/call/${requestId}/screenshot`, {
-          userId,
-          timestamp: Date.now(),
-        });
+        if (isWebSocketConnected) {
+          sendMessage(`/app/call/${requestId}/screenshot`, {
+            userId,
+            timestamp: Date.now(),
+          });
+        }
+      } else {
+        console.error("No video element found for screenshot");
+        alert("Không thể chụp ảnh màn hình. Vui lòng kiểm tra video.");
       }
     }
   };
-    const toggleRecording = async() => {
+
+
+const handleSendImage = async (imageData) => {
+    if (session) {
+      try {
+        const compressedImage = await compressImage(imageData);
+        openViduService.current.sendSignal("image", { 
+          userId, 
+          imageData: compressedImage 
+        });
+        console.log("Image sent:", compressedImage);
+        if (isAgent) {
+          setSentImages((prev) => [
+            ...prev,
+            { id: Date.now(), data: compressedImage, timestamp: new Date().toLocaleString() },
+          ]);
+        }
+        setShowAgentImagePreview(false);
+        setShowImageEditor(false);
+        setEditingImageData(null);
+        setShowSendSuccessPopup(true); // Hiển thị popup gửi thành công
+        setTimeout(() => setShowSendSuccessPopup(false), 3000); // Tự động đóng sau 3 giây
+      } catch (error) {
+        console.error("Error sending image:", error);
+        alert("Không thể gửi ảnh. Vui lòng thử lại.");
+      }
+    } else {
+      console.error("No session available to send image");
+      alert("Không có phiên hoạt động để gửi ảnh.");
+    }
+  };
+
+  const handleEditImage = (imageData) => {
+    setEditingImageData(imageData);
+    setShowImageEditor(true);
+    setShowScreenshotPreview(false);
+    setShowAgentImagePreview(false);
+  };
+
+  
+  const toggleRecording = async() => {
     if(isRecording){
       try {
         const recordingResult = await openViduService.current.stopRecording();
@@ -603,7 +706,8 @@ export const VideoCallRoom = ({
       }
     } else {
       try {
-        await openViduService.current.startRecording();
+        console.log(participants);
+        await openViduService.current.startRecording(participants[0].id, participants[1].id);
         openViduService.current.sendSignal("recording", {
           userId,
           recording: true,
@@ -836,89 +940,52 @@ export const VideoCallRoom = ({
         </div>
       </div>
 
-      {/* Video Grid */}
-      <div className="flex-1 relative p-4 bg-gray-900">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full">
+      {/* Main Content */}
+      <div className="flex-1 relative p-4 bg-gray-900 flex gap-4">
+        {/* Video Grid */}
+        <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 h-full">
           {/* Own Video */}
           <div className="relative bg-gray-800 rounded-xl overflow-hidden group">
             <div className="w-full h-full bg-gray-700 flex items-center justify-center relative">
-              {/* Video container */}
-              <div
-                ref={userVideoRef}
-                className="w-full h-full absolute inset-0"
-              ></div>
-
-              {/* Video placeholder when video is disabled or loading */}
-              {(() => {
-                const shouldShowPlaceholder = !isVideoEnabled;
-
-                
-                return shouldShowPlaceholder && (
-                  <div className="absolute inset-0 bg-gray-800 flex items-center justify-center z-10">
-                    <div className="text-gray-400 text-center">
-                      {callStatus === "connecting" ||
-                      callStatus === "initializing" ? (
-                        <>
-                          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
-                          <p>Đang kết nối...</p>
-                        </>
-                      ) : (
-                        <>
-                          <div className="w-16 h-16 mx-auto mb-4 bg-gray-600 rounded-full flex items-center justify-center">
-                            <span className="text-2xl text-white font-semibold">
-                              {getUserInitials(userName)} 
-                            </span>
-                          </div>
-                          <p>Bạn đang tắt camera</p>
-                        </>
-                      )}
-                    </div>
+              <div ref={userVideoRef} className="w-full h-full absolute inset-0"></div>
+              {(!isVideoEnabled || callStatus === "connecting" || callStatus === "initializing") && (
+                <div className="absolute inset-0 bg-gray-800 flex items-center justify-center z-10">
+                  <div className="text-gray-400 text-center">
+                    {callStatus === "connecting" || callStatus === "initializing" ? (
+                      <>
+                        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
+                        <p>Đang kết nối...</p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-16 h-16 mx-auto mb-4 bg-gray-600 rounded-full flex items-center justify-center">
+                          <span className="text-2xl text-white font-semibold">{getUserInitials(userName)}</span>
+                        </div>
+                        <p>Bạn đang tắt camera</p>
+                      </>
+                    )}
                   </div>
-                );
-              })()}
+              </div>)}
             </div>
-
             <div className="absolute top-4 left-4 bg-black bg-opacity-60 px-3 py-1 rounded-lg">
-              <span className="text-white text-sm font-medium">
-                {userName} (Bạn)
-              </span>
+              <span className="text-white text-sm font-medium">{userName} (Bạn)</span>
             </div>
-
             <button
               onClick={toggleFullscreen}
               className="absolute top-4 right-4 p-2 bg-black bg-opacity-60 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
             >
-              {isFullscreen ? (
-                <Minimize className="w-4 h-4" />
-              ) : (
-                <Maximize className="w-4 h-4" />
-              )}
+              {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
             </button>
           </div>
 
           {/* Other Participants Video */}
           <div className="relative bg-gray-800 rounded-xl overflow-hidden group">
             <div className="w-full h-full bg-gray-700 flex items-center justify-center relative">
-              {/* Video container */}
-              <div
-                ref={subscribersRef}
-                className="w-full h-full absolute inset-0"
-              ></div>
-
-              {/* Hiển thị avatar khi participant tắt video */}
+              <div ref={subscribersRef} className="w-full h-full absolute inset-0"></div>
               {(() => {
-                const otherParticipantData = participants.find(
-                  (p) => p.id !== userId
-                );
-                const hasOtherParticipant = subscribers.length > 0;
-                const isOtherVideoDisabled =
-                  otherParticipantData && !otherParticipantData.videoEnabled;
-
-
-                // Hiển thị avatar nếu có participant khác và họ tắt video
+                const otherParticipantData = participants.find((p) => p.id !== userId);
                 return (
-                  otherParticipantData &&
-                  !otherParticipantData.videoEnabled && (
+                  otherParticipantData && !otherParticipantData.videoEnabled && (
                     <div className="absolute inset-0 bg-gray-700 flex items-center justify-center z-10">
                       <div className="text-gray-400 text-center">
                         <div className="w-16 h-16 mx-auto mb-4 bg-gray-600 rounded-full flex items-center justify-center">
@@ -937,8 +1004,6 @@ export const VideoCallRoom = ({
                   )
                 );
               })()}
-
-              {/* Trường hợp chưa có ai join */}
               {subscribers.length === 0 && (
                 <div className="absolute inset-0 bg-gray-700 flex items-center justify-center z-10">
                   <div className="text-gray-400 text-center">
@@ -950,16 +1015,71 @@ export const VideoCallRoom = ({
                 </div>
               )}
             </div>
-
             <div className="absolute top-4 left-4 bg-black bg-opacity-60 px-3 py-1 rounded-lg">
               <span className="text-white text-sm font-medium">
-                {participants.find((p) => p.id !== userId)?.name ||
-                  (isAgent ? "User" : "Agent")}
+                {participants.find((p) => p.id !== userId)?.name || (isAgent ? "User" : "Agent")}
               </span>
             </div>
           </div>
         </div>
+
+        {/* Images Panel */}
+        {showImagesPanel && (
+          <div
+            className={`w-full sm:w-1/3 lg:w-1/4 max-w-sm min-w-[200px] bg-gray-100 p-4 flex flex-col z-50 transition-transform duration-300 transform sm:transform-none rounded-xl shadow-lg ${
+              showImagesPanel ? "translate-x-0" : "translate-x-full"
+            } sm:translate-x-0 fixed sm:static right-0 top-0 h-full`}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-gray-800 text-lg font-semibold">
+                {isAgent ? "Ảnh đã gửi" : "Ảnh đã nhận"} ({(isAgent ? sentImages : receivedImages).length})
+              </h3>
+              <button
+                onClick={() => setShowImagesPanel(false)}
+                className="text-gray-500 hover:text-gray-800 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {(isAgent ? sentImages : receivedImages).length > 0 ? (
+                (isAgent ? sentImages : receivedImages).map((image) => (
+                  <div
+                    key={image.id}
+                    className="flex items-center justify-between text-sm text-gray-700 mb-3 cursor-pointer hover:bg-gray-200 p-3 rounded-lg transition-colors"
+                    onClick={() => {
+                      if (isAgent) {
+                        setScreenshotData(image.data);
+                        setShowScreenshotPreview(true);
+                      } else {
+                        setAgentImageData(image.data);
+                        setShowAgentImagePreview(true);
+                      }
+                    }}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <img
+                        src={image.data}
+                        alt="Thumbnail"
+                        className="w-12 h-12 object-cover rounded-lg shadow-sm"
+                      />
+                      <span>Ảnh chụp lúc: {image.timestamp}</span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-gray-500 text-sm text-center">
+                  {isAgent ? "Chưa có ảnh nào được gửi" : "Chưa nhận được ảnh nào"}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
+      
+      
 
       {/* Control Bar */}
       <div className="bg-gray-800 px-6 py-4">
@@ -1059,6 +1179,13 @@ export const VideoCallRoom = ({
             </button>
           )}
 
+          <button
+              onClick={() => setShowImagesPanel(!showImagesPanel)}
+              className="p-4 rounded-full bg-gray-700 text-white hover:bg-gray-600 transition-all duration-200"
+              title="Danh sách ảnh"
+            >
+              <ImageIcon className="w-6 h-6" />
+          </button>
           {/* Leave Call */}
           <button
             onClick={() => {
@@ -1070,6 +1197,7 @@ export const VideoCallRoom = ({
           >
             <PhoneOff className="w-6 h-6" />
           </button>
+          
         </div>
 
         {/* Control Labels */}
@@ -1083,6 +1211,7 @@ export const VideoCallRoom = ({
           <span className="text-xs text-gray-400 w-14 text-center">
             {isScreenSharing ? "Đang chia sẻ" : "Chia sẻ"}
           </span>
+          
           {isAgent && (
             <span className="text-xs text-gray-400 w-14 text-center">
               Chụp ảnh
@@ -1093,9 +1222,13 @@ export const VideoCallRoom = ({
               {isRecording ? "Đang ghi" : "Ghi hình"}
             </span>
           )}
+          <span className="text-xs text-gray-400 w-14 text-center">
+          Ảnh
+          </span>
           <span className="text-xs text-gray-400 w-14 text-center ml-8">
             Rời phòng
           </span>
+
         </div>
       </div>
 
@@ -1103,15 +1236,10 @@ export const VideoCallRoom = ({
       {showSettings && (
         <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-gray-800 p-6 rounded-xl w-96 max-w-90vw">
-            <h3 className="text-white text-lg font-semibold mb-4">
-              Cài đặt cuộc gọi
-            </h3>
-
+            <h3 className="text-white text-lg font-semibold mb-4">Cài đặt cuộc gọi</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-gray-300 text-sm mb-2">
-                  Thông tin cuộc gọi
-                </label>
+                <label className="block text-gray-300 text-sm mb-2">Thông tin cuộc gọi</label>
                 <div className="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm">
                   <p>Request ID: {requestId}</p>
                   <p>Vai trò: {isAgent ? "Agent" : "User"}</p>
@@ -1120,53 +1248,64 @@ export const VideoCallRoom = ({
                   <p>Lần thử: {retryCount > 0 ? retryCount : "Lần đầu"}</p>
                 </div>
               </div>
-
               <div>
-                <label className="block text-gray-300 text-sm mb-2">
-                  Chất lượng video
-                </label>
+                <label className="block text-gray-300 text-sm mb-2">Chất lượng video</label>
                 <select className="w-full bg-gray-700 text-white px-3 py-2 rounded-lg">
                   <option value="480p">SD (480p) - Tiết kiệm băng thông</option>
-                  <option value="720p" selected>
-                    HD (720p) - Khuyến nghị
-                  </option>
-                  <option value="1080p">
-                    Full HD (1080p) - Chất lượng cao
-                  </option>
+                  <option value="720p" selected>HD (720p) - Khuyến nghị</option>
+                  <option value="1080p">Full HD (1080p) - Chất lượng cao</option>
                 </select>
               </div>
-
               <div>
-                <label className="block text-gray-300 text-sm mb-2">
-                  Người tham gia ({participants.length})
-                </label>
+                <label className="block text-gray-300 text-sm mb-2">Người tham gia ({participants.length})</label>
                 <div className="bg-gray-700 rounded-lg p-3 max-h-32 overflow-y-auto">
                   {participants.length > 0 ? (
                     participants.map((participant, index) => (
-                      <div
-                        key={participant.id}
-                        className="flex items-center justify-between text-sm text-white mb-1"
-                      >
+                      <div key={participant.id} className="flex items-center justify-between text-sm text-white mb-1">
                         <span>{participant.name}</span>
-                        <span className="text-gray-400 text-xs">
-                          {participant.role}
-                        </span>
+                        <span className="text-gray-400 text-xs">{participant.role}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-gray-400 text-sm">Chưa có người tham gia</p>
+                  )}
+                </div>
+              </div>
+              <div>
+                <label className="block text-gray-300 text-sm mb-2">
+                  {isAgent ? "Ảnh đã gửi" : "Ảnh đã nhận"} ({isAgent ? sentImages.length : receivedImages.length})
+                </label>
+                <div className="bg-gray-700 rounded-lg p-3 max-h-48 overflow-y-auto">
+                  {(isAgent ? sentImages : receivedImages).length > 0 ? (
+                    (isAgent ? sentImages : receivedImages).map((image) => (
+                      <div
+                        key={image.id}
+                        className="flex items-center justify-between text-sm text-white mb-2 cursor-pointer hover:bg-gray-600 p-2 rounded"
+                        onClick={() => {
+                          setAgentImageData(image.data);
+                          setShowAgentImagePreview(true);
+                        }}
+                      >
+                        <div className="flex items-center space-x-2">
+                          <img
+                            src={image.data}
+                            alt="Thumbnail"
+                            className="w-12 h-12 object-cover rounded"
+                          />
+                          <span>Ảnh chụp lúc: {image.timestamp}</span>
+                        </div>
                       </div>
                     ))
                   ) : (
                     <p className="text-gray-400 text-sm">
-                      Chưa có người tham gia
+                      {isAgent ? "Chưa có ảnh nào được gửi" : "Chưa nhận được ảnh nào"}
                     </p>
                   )}
                 </div>
               </div>
-
-              {/* Debug info */}
               {callStatus === "error" && (
                 <div>
-                  <label className="block text-gray-300 text-sm mb-2">
-                    Thông tin lỗi
-                  </label>
+                  <label className="block text-gray-300 text-sm mb-2">Thông tin lỗi</label>
                   <div className="bg-red-900 text-red-200 px-3 py-2 rounded-lg text-xs">
                     <p>Lỗi: {error}</p>
                     <p>Status: {callStatus}</p>
@@ -1175,7 +1314,6 @@ export const VideoCallRoom = ({
                 </div>
               )}
             </div>
-
             <div className="flex justify-end space-x-3 mt-6">
               <button
                 onClick={() => setShowSettings(false)}
@@ -1313,12 +1451,85 @@ export const VideoCallRoom = ({
                   setRecordingData(null);
                 }}
                 className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
+              >Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showScreenshotPreview && screenshotData && (
+        <ScreenshotPreview
+          screenshotData={screenshotData}
+          onClose={() => {
+            setShowScreenshotPreview(false);
+            setScreenshotData(null);
+          }}
+          isAgent={isAgent}
+          onEdit={() => handleEditImage(screenshotData)}
+          onSend={() => handleSendImage(screenshotData)}
+          image
+          Source="screenshot"
+        />
+        
+      )}
+      {/* Popup gửi ảnh thành công */}
+        {showSendSuccessPopup && (
+          <div className="absolute bot-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50">
+            <p className="text-sm font-medium">Gửi ảnh thành công!</p>
+          </div>
+        )}
+      {showAgentImagePreview && agentImageData && (
+        <ScreenshotPreview
+          screenshotData={agentImageData}
+          onClose={() => {
+            setShowAgentImagePreview(false);
+            setAgentImageData(null);
+          }}
+          isAgent={isAgent}
+          onEdit={() => handleEditImage(screenshotData)}
+          onSend={() => handleSendImage(agentImageData)}
+          imageSource="agent"
+        />
+      )}
+      {/* Popup nhận được ảnh */}
+        {showReceivedImagePopup && receivedImageData && (
+          <div className="absolute bot-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg z-50">
+            <div className="flex items-center space-x-2">
+              <p className="text-sm font-medium">Nhận được ảnh mới!</p>
+              <button
+                onClick={() => {
+                  setAgentImageData(receivedImageData);
+                  setShowAgentImagePreview(true);
+                  setShowReceivedImagePopup(false);
+                }}
+                className="bg-white text-blue-600 px-2 py-1 rounded text-xs hover:bg-gray-200"
+              >
+                Xem ảnh
+              </button>
+              <button
+                onClick={() => setShowReceivedImagePopup(false)}
+                className="bg-white text-blue-600 px-2 py-1 rounded text-xs hover:bg-gray-200"
               >
                 Đóng
               </button>
             </div>
           </div>
-        </div>
+        )}
+      {showImageEditor && editingImageData && (
+        <ImageEditor
+          imageData={editingImageData}
+          onSave={(newImageData) => {
+            setScreenshotData(newImageData);
+            setShowScreenshotPreview(true);
+            setShowImageEditor(false);
+            setEditingImageData(null);
+          }}
+          onCancel={() => {
+            setShowImageEditor(false);
+            setEditingImageData(null);
+            setShowScreenshotPreview(true)
+          }}
+        />
       )}
     </div>
   );

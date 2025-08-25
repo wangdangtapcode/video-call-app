@@ -42,7 +42,7 @@ export const WebSocketProvider = ({ children }) => {
 
     switch (role) {
       case "USER":
-        return [...baseChannels, "/topic/agents/status-changes"];
+        return [...baseChannels, "/topic/users/status-changes"];
       case "AGENT":
         return [...baseChannels];
       case "ADMIN":
@@ -81,7 +81,7 @@ export const WebSocketProvider = ({ children }) => {
     cleanupConnection();
 
     if (userData) {
-      setUserRole(userData.role.name);
+      setUserRole(userData.role);
       setUserId(userData.id);
     }
 
@@ -114,7 +114,7 @@ export const WebSocketProvider = ({ children }) => {
           stompClientRef.current = client;
 
           if (userData) {
-            subscribeToRoleChannels(userData.role.name, userData.id);
+            subscribeToRoleChannels(userData.role, userData.id);
           }
           resubscribeAll();
         },
