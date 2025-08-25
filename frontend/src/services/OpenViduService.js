@@ -641,11 +641,11 @@ class OpenViduService {
     /**
    * Recording Function
    */
-  async startRecording(){
+  async startRecording(agentId, userId){
     try{
       console.log("Start recording with sessionId: ", this.mySessionId)
       const response = await axios.post(
-        `${this.APPLICATION_SERVER_URL}/api/openvidu/recording/start/${this.mySessionId}?agentId=1&userId=2`,
+        `${this.APPLICATION_SERVER_URL}/api/openvidu/recording/start/${this.mySessionId}?agentId=${agentId}&userId=${userId}`,
         {
           headers: {
             "Content-Type": "application/json",
