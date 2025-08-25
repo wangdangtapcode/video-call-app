@@ -2,10 +2,10 @@
 import { Link } from "react-router-dom";
 
 const menu = [
-  { label: "Dashboard", link: "/admin", icon: "📊" },
-  { label: "Users", link: "/admin/user", icon: "👥" },
-  { label: "Agents", link: "/admin/agent", icon: "🎧" },
-  { label: "Records", link: "/admin/record", icon: "📁" },
+  { label: "Dashboard", link: "/admin/", icon: "📊" },
+  { label: "Users", link: "/admin/user/", icon: "👥" },
+  { label: "Agents", link: "/admin/agent/", icon: "🎧" },
+  { label: "Records", link: "/admin/record/", icon: "📁" },
 ];
 
 export default function Sidebar({logout}) {
