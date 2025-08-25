@@ -1,6 +1,7 @@
 package com.example.backend.service;
 
 import com.example.backend.dto.response.SupportRequestDTO;
+import com.example.backend.enums.ResponseStatus;
 import com.example.backend.enums.UserStatus;
 import com.example.backend.enums.SupportRequestStatus;
 import com.example.backend.model.SupportRequest;
@@ -11,14 +12,18 @@ import com.example.backend.repository.UserRepository;
 import com.example.backend.repository.UserMetricRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledFuture;
 import java.util.stream.Collectors;
 
 @Service
@@ -39,6 +44,11 @@ public class SupportRequestService {
 
     @Autowired
     private JwtService jwtService;
+
+    @Autowired
+    private TaskScheduler taskScheduler;
+
+    private final Map<Long, ScheduledFuture<?>> timeoutTasks = new ConcurrentHashMap<>();
 
     public ResponseEntity<?> getSupportRequest(Long requestId, String authHeader) {
         try {
@@ -84,7 +94,12 @@ public class SupportRequestService {
             request.setPreferredAgentId(agentId);
         }
 
-        return supportRequestRepository.save(request);
+        SupportRequest savedRequest = supportRequestRepository.save(request);
+
+        // Schedule timeout task
+        scheduleTimeoutTask(savedRequest);
+
+        return savedRequest;
     }
 
     /**
@@ -94,7 +109,7 @@ public class SupportRequestService {
     public void processMatching(Long requestId) {
         try {
             // Delay nhỏ để simulate processing time
-            Thread.sleep(1000);
+            Thread.sleep(2000);
 
             Optional<SupportRequest> requestOpt = supportRequestRepository.findById(requestId);
             if (requestOpt.isEmpty() || !requestOpt.get().isWaiting()) {
@@ -102,7 +117,7 @@ public class SupportRequestService {
             }
 
             SupportRequest request = requestOpt.get();
-
+            webSocketBroadcastService.notifyUserMatchingProgress(request, "Đang tìm kiếm agent...");
             if (request.isChooseAgent() && request.hasPreferredAgent()) {
                 // User chọn agent cụ thể
                 processChooseAgentMatching(request);
@@ -151,22 +166,44 @@ public class SupportRequestService {
      * Xử lý matching cho quick support
      */
     private void processQuickSupportMatching(SupportRequest request) {
-        User bestAgent = findBestAvailableAgent();
+        // Simulate tìm kiếm agent với multiple attempts
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            try {
+                // Gửi progress update
+                webSocketBroadcastService.notifyUserMatchingProgress(
+                        request,
+                        "Đang tìm agent... (Lần thử " + attempt + "/3)"
+                );
 
-        if (bestAgent == null) {
-            // Không có agent available
-            handleMatchingTimeout(request, "Hiện tại không có agent nào khả dụng");
-            return;
+                User bestAgent = findBestAvailableAgent();
+
+                if (bestAgent != null) {
+                    matchWithAgent(request, bestAgent);
+                    return;
+                }
+
+                // Wait before next attempt
+                if (attempt < 3) {
+                    Thread.sleep(5000); // 5 giây giữa các lần thử
+                }
+
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
         }
 
-        // Match thành công
-        matchWithAgent(request, bestAgent);
+        // Không tìm được agent sau 3 lần thử
+        handleMatchingTimeout(request, "Hiện tại không có agent nào khả dụng. Vui lòng thử lại sau.");
     }
 
     /**
      * Match request với agent
      */
     private void matchWithAgent(SupportRequest request, User agent) {
+        // Cancel timeout task
+        cancelTimeoutTask(request.getId());
+
         request.setAgent(agent);
         request.setStatus(SupportRequestStatus.MATCHED);
         request.setMatchedAt(LocalDateTime.now());
@@ -174,31 +211,34 @@ public class SupportRequestService {
         supportRequestRepository.save(request);
 
         // Notify user và agent qua WebSocket
-        webSocketBroadcastService.notifyUserChooseAgent(request);
-
-        // Broadcast to system for monitoring
-        webSocketBroadcastService.broadcastSystemMessage(
-                "Request " + request.getId() + " matched with agent " + agent.getId(),
-                "MATCHING_SUCCESS");
+        if(!request.isChooseAgent()){
+        webSocketBroadcastService.notifyUserMatched(request);
+        }
+        webSocketBroadcastService.notifyAgentNewRequest(request);
 
         System.out.println("Successfully matched request " + request.getId() + " with agent " + agent.getId());
     }
 
-    /**
-     * Xử lý timeout
-     */
     private void handleMatchingTimeout(SupportRequest request, String reason) {
+        cancelTimeoutTask(request.getId());
+
         request.setStatus(SupportRequestStatus.TIMEOUT);
         request.setTimeoutAt(LocalDateTime.now());
-
         supportRequestRepository.save(request);
 
-        // Notify user qua WebSocket
-        webSocketBroadcastService.notifyRequestTimeout(request, reason);
+        webSocketBroadcastService.notifyUserMatchingTimeout(request, reason);
 
         System.out.println("Request " + request.getId() + " timed out: " + reason);
     }
+    private void handleRequestTimeout(Long requestId) {
+        Optional<SupportRequest> requestOpt = supportRequestRepository.findById(requestId);
+        if (requestOpt.isEmpty() || !requestOpt.get().isWaiting()) {
+            return;
+        }
 
+        SupportRequest request = requestOpt.get();
+        handleMatchingTimeout(request, "Yêu cầu chưa được phản hồi trong thời gian quy định");
+    }
     /**
      * Tìm agent tốt nhất cho quick support
      */
@@ -279,29 +319,19 @@ public class SupportRequestService {
 
         if (isAccepted) {
             // Agent chấp nhận
-            request.setStatus(SupportRequestStatus.ACCEPT); // Hoặc có thể tạo status mới như ACCEPTED
+            request.setStatus(SupportRequestStatus.COMPLETED);
+            request.setResponse(ResponseStatus.ACCEPT);
             request.setCompletedAt(LocalDateTime.now());
 
             // Notify user that agent accepted
             webSocketBroadcastService.notifyAgentAccepted(request);
 
-            // Broadcast to both user and agent
-            // webSocketBroadcastService.broadcastSupportUpdate(
-            // request.getUser().getId(),
-            // "AGENT_ACCEPTED",
-            // "Agent " + agent.getFullName() + " đã chấp nhận hỗ trợ bạn! Đang chuyển đến
-            // video call...");
-            //
-            // webSocketBroadcastService.broadcastSupportUpdate(
-            // agent.getId(),
-            // "REQUEST_ACCEPTED",
-            // "Bạn đã chấp nhận hỗ trợ user " + request.getUser().getFullName()
-            // + ". Đang chuyển đến video call...");
 
         } else {
             // Agent từ chối
-            request.setStatus(SupportRequestStatus.REJECT); // Hoặc có thể tạo status REJECTED
-            request.setTimeoutAt(LocalDateTime.now());
+            request.setStatus(SupportRequestStatus.COMPLETED);
+            request.setResponse(ResponseStatus.REJECT);
+            request.setCompletedAt(LocalDateTime.now());
 
             // Notify user that agent rejected
             webSocketBroadcastService.notifyAgentRejected(request);
@@ -324,16 +354,81 @@ public class SupportRequestService {
 
         return supportRequestRepository.save(request);
     }
-
-    /**
-     * Xử lý timeout requests (chạy định kỳ)
-     */
-    public void processTimeoutRequests() {
-        LocalDateTime timeoutTime = LocalDateTime.now().minusMinutes(5); // 5 phút timeout
-        List<SupportRequest> timeoutRequests = supportRequestRepository.findTimeoutRequests(timeoutTime);
-
-        for (SupportRequest request : timeoutRequests) {
-            handleMatchingTimeout(request, "Hết thời gian chờ (5 phút)");
+    private long getOnlineAgentsCount() {
+        return userRepository.countByRoleAndStatus("AGENT", UserStatus.ONLINE);
+    }
+    // Helper methods để hỗ trợ frontend timer
+    public int getEstimatedWaitTime(String type, Long agentId) {
+        if ("choose_agent".equals(type)) {
+            // Kiểm tra agent có online không
+            User agent = userRepository.findById(agentId).orElse(null);
+            if (agent != null && agent.getStatus() == UserStatus.ONLINE) {
+                return 30; // 30 giây nếu agent online
+            }
+            return 120; // 2 phút nếu agent offline
+        } else {
+            // Quick support - tính dựa trên số agent online
+            long onlineAgentsCount = getOnlineAgentsCount();
+            if (onlineAgentsCount == 0) {
+                return 300; // 5 phút nếu không có agent
+            } else if (onlineAgentsCount < 3) {
+                return 120; // 2 phút nếu ít agent
+            } else {
+                return 60; // 1 phút nếu nhiều agent
+            }
         }
+    }
+    public boolean cancelSupportRequest(Long requestId, Long userId) {
+        Optional<SupportRequest> requestOpt = supportRequestRepository.findById(requestId);
+
+        if (requestOpt.isEmpty()) {
+            throw new RuntimeException("Request not found");
+        }
+
+        SupportRequest request = requestOpt.get();
+
+        // Verify ownership
+        if (!request.getUser().getId().equals(userId)) {
+            throw new RuntimeException("Unauthorized to cancel this request");
+        }
+
+        // Chỉ có thể hủy khi đang WAITING
+        if (!request.isWaiting()) {
+            return false;
+        }
+
+        // Cancel timeout task
+        cancelTimeoutTask(requestId);
+
+        // Update status
+        request.setStatus(SupportRequestStatus.CANCELLED);
+        request.setCompletedAt(LocalDateTime.now());
+        supportRequestRepository.save(request);
+
+        // Notify via WebSocket
+        webSocketBroadcastService.notifyUserRequestCancelled(request);
+
+        return true;
+    }
+
+    private void scheduleTimeoutTask(SupportRequest request) {
+        int timeoutSeconds = getTimeoutForType(request.getType());
+
+        ScheduledFuture<?> timeoutTask = taskScheduler.schedule(() -> {
+            handleRequestTimeout(request.getId());
+        }, Instant.now().plusSeconds(timeoutSeconds));
+
+        timeoutTasks.put(request.getId(), timeoutTask);
+    }
+
+    private void cancelTimeoutTask(Long requestId) {
+        ScheduledFuture<?> task = timeoutTasks.remove(requestId);
+        if (task != null && !task.isDone()) {
+            task.cancel(false);
+        }
+    }
+
+    private int getTimeoutForType(String type) {
+        return "choose_agent".equals(type) ? 300 : 600; // 5 phút vs 10 phút
     }
 }

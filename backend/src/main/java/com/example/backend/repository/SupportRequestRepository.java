@@ -1,6 +1,7 @@
 package com.example.backend.repository;
 
 import com.example.backend.enums.SupportRequestStatus;
+import com.example.backend.enums.UserStatus;
 import com.example.backend.model.SupportRequest;
 import com.example.backend.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useUser } from "../context/UserContext";
 import { useWebSocket } from "../context/WebSocketContext";
+import { useNotification } from "../context/NotificationContext";
 import { VideoCallRoom } from "../components/VideoCall/VideoCallRoom";
 import axios from "axios";
 
@@ -9,9 +10,9 @@ export const VideoCall = () => {
   console.log("VIDEO CALL PAGE RENDERED");
   const { requestId } = useParams();
   const navigate = useNavigate();
-  const { user, isAuthenticated, token } = useUser();
+  const { user, isAuthenticated, token, updateStatus } = useUser();
   const { isConnected } = useWebSocket();
-
+  const { addNotification } = useNotification();
   const [callData, setCallData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -25,9 +26,24 @@ export const VideoCall = () => {
     if (!requestId) {
       setError("Request ID không hợp lệ");
       setIsLoading(false);
+      addNotification({
+        type: 'error',
+        title: 'Lỗi tham số',
+        message: 'Request ID không hợp lệ. Vui lòng kiểm tra lại đường dẫn.',
+        duration: 5000
+      });
       return;
     }
 
+    // Check if user has gone through permission page
+    // const permissionState = sessionStorage.getItem(`permissions_${requestId}`);
+    // if (!permissionState) {
+    //   // Redirect to permission page if no permission state found
+    //   console.log("No permission state found, redirecting to permission page");
+    //   navigate(`/permission/${requestId}`, { replace: true });
+    //   return;
+    // }
+    
     loadCallData();
   }, [requestId, isAuthenticated, user, navigate]);
 
@@ -50,6 +66,9 @@ export const VideoCall = () => {
       }
       console.log("Call data loaded:", response.data);
       const data = response.data;
+
+ 
+
       setCallData(data);
     } catch (error) {
       console.error("Error loading call data:", error);
@@ -59,13 +78,23 @@ export const VideoCall = () => {
     }
   }, [requestId, token]);
 
-  const handleCallEnd = () => {
-    // Navigate back to appropriate dashboard
-    if (user.role === "AGENT") {
-      navigate("/agent");
-    } else {
-      navigate("/");
+  const handleCallEnd = async () => {
+    console.log("handleCallEnd called, updating user status to ONLINE");
+    
+    try {
+      // Update user status to ONLINE to prevent unwanted re-renders
+      await updateStatus("ONLINE");
+    } catch (error) {
+      console.error("Error updating user status:", error);
     }
+
+    // Add a small delay to ensure status update completes before navigation
+      // Navigate back to appropriate dashboard
+      if (user.role === "AGENT") {
+        navigate("/agent");
+      } else {
+        navigate("/");
+      }
   };
 
   if (isLoading) {

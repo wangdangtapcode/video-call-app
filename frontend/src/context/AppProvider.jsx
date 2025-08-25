@@ -1,14 +1,28 @@
 import React from 'react';
-import { UserProvider } from './UserContext';
+import { UserProvider, useUser } from './UserContext';
 import { WebSocketProvider } from './WebSocketContext';
+import { NotificationProvider } from './NotificationContext';
+import { NotificationContainer } from '../components/NotificationContainer';
 
+const AppProviderInner = ({ children }) => {
+  const { user } = useUser();
+  
+  return (
+    <WebSocketProvider>
+      <NotificationProvider userId={user?.id} userRole={user?.role}>
+        {children}
+        <NotificationContainer />
+      </NotificationProvider>
+    </WebSocketProvider>
+  );
+};
 
 export const AppProvider = ({ children }) => {
   return (
     <UserProvider>
-      <WebSocketProvider>
+      <AppProviderInner>
         {children}
-      </WebSocketProvider>
+      </AppProviderInner>
     </UserProvider>
   );
 };

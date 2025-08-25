@@ -385,20 +385,100 @@ class OpenViduService {
    */
   leaveSession() {
     try {
+      console.log("Starting OpenVidu session cleanup...");
+
+      // Stop all tracks from publisher if exists
+      if (this.publisher && this.publisher.stream) {
+        this.publisher.stream
+          .getMediaStream()
+          .getTracks()
+          .forEach((track) => {
+            track.stop();
+            console.log("Stopped track:", track.kind);
+          });
+      }
+
+      // Stop all tracks from subscribers
+      this.subscribers.forEach((subscriber) => {
+        if (subscriber.stream && subscriber.stream.getMediaStream()) {
+          subscriber.stream
+            .getMediaStream()
+            .getTracks()
+            .forEach((track) => {
+              track.stop();
+              console.log("Stopped subscriber track:", track.kind);
+            });
+        }
+      });
+
+      // Disconnect from session
       if (this.session) {
-        console.log("You were not connected to the session", this.mySessionId);
+        console.log("Disconnecting from session:", this.mySessionId);
         this.session.disconnect();
       }
 
-      // Cleanup
+      // Cleanup all references
       this.session = null;
       this.publisher = null;
       this.subscribers = [];
+      this.mySessionId = null;
+      this.myUserName = null;
+      this.token = null;
 
-      console.log("Left OpenVidu session");
+      console.log("OpenVidu session cleanup completed successfully");
     } catch (error) {
-      console.error("Error leaving session:", error);
+      console.error("Error during session cleanup:", error);
+
+      // Force cleanup even if there are errors
+      this.session = null;
+      this.publisher = null;
+      this.subscribers = [];
+      this.mySessionId = null;
+      this.myUserName = null;
+      this.token = null;
     }
+  }
+
+  /**
+   * Force cleanup without attempting to disconnect (for emergency cases)
+   */
+  forceCleanup() {
+    console.log("Force cleanup initiated...");
+
+    try {
+      // Stop all media tracks immediately
+      if (this.publisher && this.publisher.stream) {
+        this.publisher.stream
+          .getMediaStream()
+          .getTracks()
+          .forEach((track) => {
+            track.stop();
+          });
+      }
+
+      this.subscribers.forEach((subscriber) => {
+        if (subscriber.stream && subscriber.stream.getMediaStream()) {
+          subscriber.stream
+            .getMediaStream()
+            .getTracks()
+            .forEach((track) => {
+              track.stop();
+            });
+        }
+      });
+    } catch (error) {
+      console.warn("Error stopping tracks during force cleanup:", error);
+    }
+
+    // Force reset all properties
+    this.session = null;
+    this.publisher = null;
+    this.subscribers = [];
+    this.mySessionId = null;
+    this.myUserName = null;
+    this.token = null;
+
+    console.log("Force cleanup completed");
   }
 
   /**

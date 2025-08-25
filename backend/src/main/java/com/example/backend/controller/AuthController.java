@@ -45,4 +45,10 @@ public class AuthController {
         }
     }
 
+    @PostMapping("/oauth2/login")
+    public ResponseEntity<?> oauth2Login(@RequestBody Map<String, String> requestBody) {
+        String code = requestBody.get("code");
+        LoginResponse loginResponse = authService.oauth2Login(code);
+        return ResponseEntity.ok(loginResponse);
+    }
 }

@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import software.amazon.awssdk.annotations.NotNull;
 
 @Entity
 @Table(name = "users")
@@ -24,7 +25,7 @@ public class User {
     private String email;
 
     @JsonIgnore
-    @Column(nullable = false, length = 255)
+    @Column( length = 255)
     private String password;
 
     @Column(name = "full_name", length = 200)
@@ -38,6 +39,27 @@ public class User {
     private boolean isActive = true;
 
     @Column(nullable = false)
-    private String role;
+    private String role= "USER";
 
+
+    @Column(name = "google_id")
+    private String googleId;
+
+    @NotNull
+    @Column(name = "provider")
+    private String provider;
+
+    @Column(name = "avatar_url")
+    private String avatarUrl;
+
+    public User(String email, String fullName, String googleId, String provider, String avatarUrl) {
+        this.email = email;
+        this.fullName = fullName;
+        this.googleId = googleId;
+        this.provider = provider;
+        this.avatarUrl = avatarUrl;
+        this.role = "USER";
+        this.isActive = true;
+        this.status = UserStatus.OFFLINE;
+    }
 }

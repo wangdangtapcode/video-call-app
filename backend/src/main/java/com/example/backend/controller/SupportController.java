@@ -76,10 +76,14 @@ public class SupportController {
 
             // Trả về response ngay lập tức
             Map<String, Object> response = new HashMap<>();
+            response.put("id", request.getId()); // Thêm id để frontend có thể hủy
             response.put("requestId", request.getId());
             response.put("status", request.getStatus().toString());
-            response.put("message", "Đã tiếp nhận yêu cầu, đang tìm kiếm agent...");
+            response.put("type", request.getType());
+            response.put("estimatedWaitTime", supportRequestService.getEstimatedWaitTime(type, agentId)+"");
+            response.put("message", getInitialMessage(type, agentId));
             response.put("timestamp", System.currentTimeMillis());
+            response.put("maxWaitTime", getMaxWaitTime(type));
 
             // Trigger matching process bất đồng bộ
             supportRequestService.processMatching(request.getId());
@@ -93,10 +97,6 @@ public class SupportController {
         }
     }
 
-    /**
-     * GET /api/support/agents/online
-     * Lấy danh sách agents đang online
-     */
     @GetMapping("/agents/online")
     public ResponseEntity<?> getOnlineAgents(
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
@@ -122,10 +122,6 @@ public class SupportController {
         }
     }
 
-    /**
-     * POST /api/support/requests/{requestId}/complete
-     * Hoàn thành support request
-     */
     @PostMapping("/requests/{requestId}/complete")
     public ResponseEntity<?> completeRequest(
             @PathVariable Long requestId,
@@ -208,5 +204,59 @@ public class SupportController {
                     e.getMessage());
             return ResponseEntity.badRequest().body(response);
         }
+    }
+
+    @DeleteMapping("/requests/{requestId}")
+    public ResponseEntity<?> cancelSupportRequest(
+            @PathVariable Long requestId,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        try {
+            String token = jwtService.extractTokenFromHeader(authHeader);
+            if (token == null || jwtService.isTokenExpired(token)) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Invalid or expired token"));
+            }
+
+            Long userId = jwtService.extractUserId(token);
+            boolean cancelled = supportRequestService.cancelSupportRequest(requestId, userId);
+
+            if (cancelled) {
+                return ResponseEntity.ok(Map.of(
+                        "message", "Yêu cầu hỗ trợ đã được hủy thành công",
+                        "requestId", requestId,
+                        "timestamp", System.currentTimeMillis()
+                ));
+            } else {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "message", "Không thể hủy yêu cầu này",
+                        "code", "CANNOT_CANCEL"
+                ));
+            }
+
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "message", "Error cancelling request: " + e.getMessage()
+            ));
+        }
+    }
+
+
+
+    private String getInitialMessage(String type, Long agentId) {
+        if ("choose_agent".equals(type)) {
+            return "Đã gửi yêu cầu đến agent được chọn, đang chờ phản hồi...";
+        } else {
+            return "Đang tìm agent có sẵn để hỗ trợ bạn...";
+        }
+    }
+
+    private int getMaxWaitTime(String type) {
+        // Thời gian tối đa trước khi timeout (giây)
+        if ("choose_agent".equals(type)) {
+            return 300; // 5 phút cho choose_agent
+        } else {
+            return 600; // 10 phút cho quick_support
+        }
+
     }
 }

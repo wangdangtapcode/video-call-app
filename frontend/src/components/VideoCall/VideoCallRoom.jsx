@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useWebSocket } from "../../context/WebSocketContext";
 import OpenViduService from "../../services/OpenViduService";
+import { useUser } from "../../context/UserContext";
 
 export const VideoCallRoom = ({
   requestId,
@@ -29,12 +30,35 @@ export const VideoCallRoom = ({
   isWebSocketConnected,
 }) => {
   console.log("VideoCallRoom component rendered");
+  
+  // Get permission state from previous page
+  const getInitialPermissionState = () => {
+    try {
+      const savedState = sessionStorage.getItem(`permissions_${requestId}`);
+      if (savedState) {
+        const parsed = JSON.parse(savedState);
+        // Check if permission state is not too old (15 minutes)
+        if (Date.now() - parsed.timestamp < 15 * 60 * 1000) {
+          return {
+            video: parsed.videoEnabled,
+            audio: parsed.audioEnabled
+          };
+        }
+      }
+    } catch (error) {
+      console.warn("Could not parse permission state:", error);
+    }
+    return { video: true, audio: true }; // Default values
+  };
+
+  const initialPermissions = getInitialPermissionState();
+  
   // States
   const [session, setSession] = useState(null);
   const [publisher, setPublisher] = useState(null);
   const [subscribers, setSubscribers] = useState([]);
-  const [isVideoEnabled, setIsVideoEnabled] = useState(true);
-  const [isAudioEnabled, setIsAudioEnabled] = useState(true);
+  const [isVideoEnabled, setIsVideoEnabled] = useState(initialPermissions.video);
+  const [isAudioEnabled, setIsAudioEnabled] = useState(initialPermissions.audio);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [callStatus, setCallStatus] = useState("initializing");
@@ -58,7 +82,6 @@ export const VideoCallRoom = ({
   const durationInterval = useRef(null);
 
   const { sendMessage } = useWebSocket();
-
   // Determine if current user is agent or user
   const isAgent = userRole === "AGENT";
   const otherParticipant = isAgent ? callData?.user : callData?.agent;
@@ -99,8 +122,29 @@ export const VideoCallRoom = ({
 
     return () => {
       mounted = false;
-      leaveSession();
-      stopCallDuration();
+      console.log("VideoCallRoom component unmounting, performing cleanup...");
+      
+      try {
+        leaveSession();
+        stopCallDuration();
+        
+        // Cleanup permission state
+        sessionStorage.removeItem(`permissions_${requestId}`);
+        
+        // Force cleanup if normal cleanup fails
+        if (openViduService.current) {
+          openViduService.current.forceCleanup();
+        }
+        
+        console.log("VideoCallRoom cleanup completed");
+      } catch (error) {
+        console.error("Error during component cleanup:", error);
+        
+        // Ensure force cleanup runs even if normal cleanup fails
+        if (openViduService.current) {
+          openViduService.current.forceCleanup();
+        }
+      }
     };
   }, []);
 
@@ -602,8 +646,10 @@ export const VideoCallRoom = ({
     }
   };
 
-  const leaveSession = () => {
+  const leaveSession = async () => {
     try {
+      console.log("Leaving OpenVidu session and updating user status...");
+      
       // Leave OpenVidu session
       openViduService.current.leaveSession();
 
@@ -614,6 +660,12 @@ export const VideoCallRoom = ({
       setParticipants([]);
       setCallStatus("ended");
       stopCallDuration();
+      
+      // Cleanup permission state to prevent re-use
+      sessionStorage.removeItem(`permissions_${requestId}`);
+      
+      console.log("Successfully left session and cleaned up states");
+      
     } catch (error) {
       console.error("Error leaving session:", error);
     }
@@ -1041,9 +1093,22 @@ export const VideoCallRoom = ({
 
           {/* Leave Call */}
           <button
-            onClick={() => {
-              leaveSession();
-              setTimeout(onCallEnd, 1000);
+            onClick={async () => {
+              console.log("Leave call button clicked");
+              try {
+                // First leave the session and cleanup
+                await leaveSession();
+                
+                // Small delay to ensure cleanup completes
+                // setTimeout(() => {
+                //   console.log("Calling onCallEnd after leaving session");
+                //   onCallEnd();
+                // }, 500);
+              } catch (error) {
+                console.error("Error during leave call process:", error);
+                // Still call onCallEnd even if there's an error
+                onCallEnd();
+              }
             }}
             className="p-4 rounded-full bg-red-600 text-white hover:bg-red-700 transition-all duration-200 ml-8"
             title="Rời cuộc gọi"
@@ -1215,7 +1280,10 @@ export const VideoCallRoom = ({
               Thời gian gọi: {formatDuration(callDuration)}
             </p>
             <button
-              onClick={onCallEnd}
+              onClick={() => {
+                console.log("Dashboard button clicked from call ended overlay");
+                onCallEnd();
+              }}
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg"
             >
               Quay lại Dashboard

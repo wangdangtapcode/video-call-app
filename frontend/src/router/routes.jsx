@@ -8,6 +8,7 @@ import { AdminDashboard } from "../pages/admin/AdminDashboard";
 import AdminUser from "../pages/admin/AdminUser";
 import AdminLayout from "../layouts/AdminLayout";
 import { VideoCall } from "../pages/VideoCall";
+import { PermissionRequest } from "../pages/PermissionRequest";
 import AdminRecord from "../pages/admin/AdminRecord";
 
 
@@ -31,12 +32,12 @@ export const Routers = () => {
         </Route>
 
 
-        {/* Video Call - No layout wrapper for full screen experience */}
+        <Route path="/permission/:requestId" element={<PermissionRequest />} />
+        
         <Route path="/call/:requestId" element={<VideoCall />} />
 
         {/*Login*/}
         <Route path="/login" element={<Login />} />
-
         {/* Not Found */}
         <Route path="*" element={<NotFound />} />
       </Routes>

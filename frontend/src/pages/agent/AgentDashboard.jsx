@@ -3,14 +3,16 @@ import { useNavigate } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
 import { useAgentSubscriptions } from "../../hooks/useAgentSubscriptions";
 import { useWebSocket } from "../../context/WebSocketContext";
+import { useNotification } from "../../context/NotificationContext";
 import { SupportRequestModal } from "../../components/SupportRequestModal";
 import axios from "axios";
 export const AgentDashboard = () => {
-  const { user, userMetric, isLoading, isInitialized, isAuthenticated, token } =
+  const { user, userMetric, isLoading, isInitialized, isAuthenticated, token,updateStatus } =
     useUser();
   const { isConnected } = useWebSocket();
+  const { addNotification } = useNotification();
   const navigate = useNavigate();
-  const { supportRequests, updateUserStatus } = useAgentSubscriptions();
+  const { supportRequests } = useAgentSubscriptions();
 
   const [stats, setStats] = useState({
     totalRequests: 24,
@@ -82,11 +84,7 @@ export const AgentDashboard = () => {
 
   const handleStatusChange = async (newStatus) => {
     console.log("Agent status changing to:", newStatus);
-    const success = await updateUserStatus(newStatus);
-    if (!success) {
-      console.error("Failed to update agent status");
-      // Có thể hiển thị notification lỗi ở đây
-    }
+    await updateStatus(newStatus);
   };
   const handleRejectRequest = async (requestId) => {
     try {
@@ -109,7 +107,6 @@ export const AgentDashboard = () => {
       }
     } catch (error) {
       console.error("Error rejecting request:", error);
-      alert("Có lỗi xảy ra khi từ chối yêu cầu");
     }
   };
 
@@ -131,16 +128,17 @@ export const AgentDashboard = () => {
         console.log("Request accepted successfully");
         setShowModal(false);
         setCurrentRequest(null);
-        const success = await updateUserStatus("BUSY");
-        if (!success) {
-          console.error("Failed to update agent status");
-          // Có thể hiển thị notification lỗi ở đây
-        }
-        navigate(`/call/${requestId}`);
+        // Navigate to permission page first
+        navigate(`/permission/${requestId}`);
       }
     } catch (error) {
       console.error("Error accepting request:", error);
-      alert("Có lỗi xảy ra khi chấp nhận yêu cầu");
+      addNotification({
+        type: 'error',
+        title: 'Lỗi chấp nhận yêu cầu',
+        message: 'Có lỗi xảy ra khi chấp nhận yêu cầu. Vui lòng thử lại.',
+        duration: 5000
+      });
     }
   };
   const handleCloseModal = () => {

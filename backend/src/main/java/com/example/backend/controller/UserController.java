@@ -8,7 +8,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/user")
@@ -19,11 +21,14 @@ public class UserController {
 
 
     @PutMapping("/{userId}/status")
-    public ResponseEntity<Void> updateUserStatus(@PathVariable Long userId, @RequestParam UserStatus status) {
+    public ResponseEntity<Map<String, String>> updateUserStatus(@PathVariable Long userId, @RequestParam UserStatus status) {
         userService.updateUserStatus(userId, status);
-        return ResponseEntity.ok().build();
-    }
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Status updated successfully");
+        response.put("status", status.toString());
 
+        return ResponseEntity.ok(response);
+    }
 //
 //    @PostMapping
 //    public ResponseEntity<UserResponse> createUser(@RequestBody UserRequest userRequest){

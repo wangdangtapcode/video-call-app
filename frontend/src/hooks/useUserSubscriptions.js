@@ -22,17 +22,19 @@ export const useUserSubscriptions = () => {
   // Support-related notifications for users
   useRoleChannelListener("request_matched", (data) => {
     console.log("User received support request match:", data);
-    setSupportUpdates((prev) => [data, ...prev.slice(0, 9)]);
+    setNotifications((prev) => [data, ...prev.slice(0, 49)]);
+
   });
 
   useRoleChannelListener("request_timeout", (data) => {
     console.log("User received support request timeout:", data);
-    setSupportUpdates((prev) => [data, ...prev.slice(0, 9)]);
+    setNotifications((prev) => [data, ...prev.slice(0, 49)]);
   });
 
   useRoleChannelListener("agent_accepted", (data) => {
     console.log("Agent accepted support request:", data);
-    setSupportUpdates((prev) => [data, ...prev]);
+    setNotifications((prev) => [data, ...prev.slice(0, 49)]);
+    // setSupportUpdates((prev) => [data, ...prev]);
 
     // Auto redirect to call page after 2 seconds
     // setTimeout(() => {
@@ -45,11 +47,11 @@ export const useUserSubscriptions = () => {
 
   useRoleChannelListener("agent_rejected", (data) => {
     console.log("Agent rejected support request:", data);
-    setSupportUpdates((prev) => [data, ...prev.slice(0, 9)]);
+    setNotifications((prev) => [data, ...prev.slice(0, 49)]);
   });
 
-  useRoleChannelListener("NEW_NOTIFICATION", (data) => {
-    setNotifications((prev) => [data, ...prev.slice(0, 49)]);
+  useRoleChannelListener("MATCHING_PROGRESS", (data) => {
+    console.log("User received matching progress:", data);
   });
 
   useRoleChannelListener("CALL_REQUEST_UPDATE", (data) => {

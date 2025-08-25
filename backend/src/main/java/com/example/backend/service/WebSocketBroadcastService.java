@@ -99,7 +99,6 @@ public class WebSocketBroadcastService {
     public void notifyAgentRejected(SupportRequest request) {
         String message = "Agent " + request.getAgent().getFullName() + " đã từ chối yêu cầu hỗ trợ.";
 
-
         this.broadcastToUser(
                 request.getUser().getId(),
                 "agent_rejected",
@@ -119,7 +118,6 @@ public class WebSocketBroadcastService {
         messagingTemplate.convertAndSend("/topic/users/status-changes", message);
     }
 
-
     /**
      * Broadcast message to specific user
      */
@@ -135,7 +133,7 @@ public class WebSocketBroadcastService {
             requestData.put("status", request.getStatus());
             requestData.put("type", request.getType());
             requestData.put("createdAt", request.getCreatedAt());
-
+            requestData.put("response", request.getResponse());
             if (request.getAgent() != null) {
                 Map<String, Object> agentData = new HashMap<>();
                 agentData.put("id", request.getAgent().getId());
@@ -180,8 +178,75 @@ public class WebSocketBroadcastService {
     /**
      * Broadcast notification (placeholder for compatibility)
      */
-    public void broadcastNotification(Object notification) {
-        // This method exists for compatibility with existing code
-        System.out.println("Broadcasting notification: " + notification);
+    public void notifyUserMatchingProgress(SupportRequest request, String message) {
+        Map<String, Object> notification = new HashMap<>();
+        notification.put("type", "MATCHING_PROGRESS");
+        notification.put("requestId", request.getId());
+        notification.put("message", message);
+        notification.put("timestamp", System.currentTimeMillis());
+
+        messagingTemplate.convertAndSendToUser(
+                request.getUser().getId().toString(),
+                "/topic/support-updates",
+                notification);
+    }
+
+    public void notifyUserMatched(SupportRequest request) {
+
+        this.broadcastToUser(
+                request.getUser().getId(),
+                "request_matched",
+                "Đã tìm thấy agent hỗ trợ! Đợi phản hồi",
+                request);
+
+    }
+
+    public void notifyUserMatchingTimeout(SupportRequest request, String reason) {
+        Map<String, Object> notification = new HashMap<>();
+        notification.put("type", "request_timeout");
+        notification.put("requestId", request.getId());
+        notification.put("message", reason);
+        notification.put("timestamp", System.currentTimeMillis());
+
+        messagingTemplate.convertAndSendToUser(
+                request.getUser().getId().toString(),
+                "/topic/support-updates",
+                notification);
+    }
+
+    public void notifyUserRequestCancelled(SupportRequest request) {
+        Map<String, Object> notification = new HashMap<>();
+        notification.put("type", "REQUEST_CANCELLED");
+        notification.put("requestId", request.getId());
+        notification.put("message", "Yêu cầu hỗ trợ đã được hủy");
+        notification.put("timestamp", System.currentTimeMillis());
+
+        messagingTemplate.convertAndSendToUser(
+                request.getUser().getId().toString(),
+                "/topic/support-updates",
+                notification);
+    }
+
+    public void notifyUserMatchingError(SupportRequest request, String error) {
+        Map<String, Object> notification = new HashMap<>();
+        notification.put("type", "REQUEST_ERROR");
+        notification.put("requestId", request.getId());
+        notification.put("message", "Có lỗi xảy ra: " + error);
+        notification.put("timestamp", System.currentTimeMillis());
+
+        messagingTemplate.convertAndSendToUser(
+                request.getUser().getId().toString(),
+                "/topic/support-updates",
+                notification);
+    }
+
+    public void notifyAgentNewRequest(SupportRequest request) {
+
+        this.broadcastToUser(
+                request.getAgent().getId(),
+                "request_assigned",
+                "Bạn có yêu cầu hỗ trợ mới",
+                request);
+
     }
 }

@@ -5,7 +5,7 @@ import { useUser } from "../context/UserContext";
 
 export const useAgentSubscriptions = () => {
 
-  const { user, isAgent, token, updateStatus } = useUser();
+  const { user, isAgent, token } = useUser();
   const [callAssignments, setCallAssignments] = useState([]);
   const [queueUpdates, setQueueUpdates] = useState(null);
   const [agentNotifications, setAgentNotifications] = useState([]);
@@ -32,40 +32,11 @@ export const useAgentSubscriptions = () => {
   });
 
 
-  const updateUserStatus = useCallback(
-    async (newStatus) => {
-      if (!user || !isAgent || !token) {
-        console.warn("Cannot update status: user is not an agent or no token");
-        return false;
-      }
-
-      try {
-        console.log("Updating user status to:", newStatus);
-
-        await axios.put(`http://localhost:8081/api/user/${user.id}/status`, null, {
-          params: { status: newStatus },
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        updateStatus(newStatus);
-
-        return true;
-      } catch (error) {
-        console.error("Error updating agent status:", error);
-        return false;
-      }
-    },
-    [user, isAgent, token, updateStatus]
-  );
-
-
   return {
     callAssignments,
     queueUpdates,
     agentNotifications,
     supportRequests,
-    updateUserStatus,
+    
   };
 };

@@ -30,3 +30,13 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background-color: #9ca3af;
 }
+
+/* Notification animation */
+@keyframes shrinkWidth {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}

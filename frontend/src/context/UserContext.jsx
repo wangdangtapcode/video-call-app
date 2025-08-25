@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import axios from 'axios';
 
 // Action types
 const USER_ACTIONS = {
@@ -124,8 +125,19 @@ useEffect(() => {
     sessionStorage.removeItem('userData');
   };
 
-  const updateStatus = (status) => {
-    dispatch({ type: USER_ACTIONS.UPDATE_STATUS, payload: status });
+  const updateStatus = async (status) => {
+    try {
+      console.log("Updating user status to:", status);
+      const response = await axios.put(`http://localhost:8081/api/user/${state.user.id}/status`, null, {
+        params: { status: status },
+        headers: {
+          Authorization: `Bearer ${state.token}`
+        }
+      });
+      dispatch({ type: USER_ACTIONS.UPDATE_STATUS, payload: status });
+    } catch (error) {
+      console.error('Error updating status:', error);
+    }
   };
 
   const value = {

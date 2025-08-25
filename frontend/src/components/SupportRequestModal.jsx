@@ -29,11 +29,11 @@ export const SupportRequestModal = ({ request, onAccept, onReject, onClose }) =>
 
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 backdrop-blur-sm">
+    <div className="fixed inset-0 bg-black/60 bg-opacity-60 flex items-center justify-center z-50 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full mx-4 transform transition-all duration-300">
         {/* Header */}
         <div className="relative p-6 pb-4 border-b border-gray-100">
-          <div className="absolute top-6 right-6">
+          {/* <div className="absolute top-6 right-6">
             <button
               onClick={onClose}
               disabled={isProcessing}
@@ -43,20 +43,14 @@ export const SupportRequestModal = ({ request, onAccept, onReject, onClose }) =>
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
-          </div>
+          </div> */}
           
           <div className="text-center">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-xl font-bold mx-auto mb-4 shadow-lg">
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192L5.636 18.364M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
-            </div>
+
             <h3 className="text-xl font-bold text-gray-900 mb-1">
               Yêu cầu hỗ trợ mới
             </h3>
-            <p className="text-gray-500 text-sm">
-              Một user đang cần hỗ trợ từ bạn
-            </p>
+
           </div>
         </div>
 
@@ -70,12 +64,6 @@ export const SupportRequestModal = ({ request, onAccept, onReject, onClose }) =>
               <h4 className="text-lg font-semibold text-gray-900 mb-2">
                 {request.user?.fullName || request.user?.email || 'Anonymous User'}
               </h4>
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center justify-center gap-2">
-                  <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
-                  <span className="text-yellow-600 font-medium">Đang chờ phản hồi</span>
-                </div>
-              </div>
             </div>
           </div>
 
@@ -103,7 +91,7 @@ export const SupportRequestModal = ({ request, onAccept, onReject, onClose }) =>
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
-                Từ chối hỗ trợ  
+                Từ chối  
               </button>
               <button
                 onClick={handleAccept}
@@ -123,7 +111,7 @@ export const SupportRequestModal = ({ request, onAccept, onReject, onClose }) =>
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    Chấp nhận hỗ trợ
+                    Chấp nhận
                   </>
                 )}
               </button>
