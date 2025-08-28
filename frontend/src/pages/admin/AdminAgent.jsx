@@ -1,10 +1,12 @@
 // src/pages/admin/AdminAgent.jsx
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import axios from "axios";
 import { useWebSocket } from "../../context/WebSocketContext";
 import UserTable from "../../components/AdminUser/UserTable";
 import AddUserModal from "../../components/AdminUser/AddUserModel";
 import SearchBar from "../../components/AdminUser/SearchBar";
+import { useUserSubscriptions } from "../../hooks/useUserSubscriptions";
+import { Bar, Bubble } from "react-chartjs-2";
 
 // import SearchBar from "../../components/AdminUser/SearchBar";
 // import AddUserModal from "../../components/AdminUser/AddUserModal";
@@ -12,7 +14,9 @@ import SearchBar from "../../components/AdminUser/SearchBar";
 
 
 export default function AdminAgent() {
-  const [agents, setAgents] = useState([]);
+  
+  const {agents, setAgents, agentData} = useUserSubscriptions();
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newAgent, setNewAgent] = useState({ fullName: "", role: "AGENT" });
   const [searchKeyword, setSearchKeyword] = useState("");
@@ -23,7 +27,6 @@ export default function AdminAgent() {
 
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
-  const { client, connect } = useWebSocket();
   const API_BASE_URL = "http://localhost:8081/api";
 
   // Fetch agents
@@ -43,31 +46,6 @@ export default function AdminAgent() {
     fetchAgents(searchKeyword);
   }, [searchKeyword]);
 
-  // Connect WebSocket on mount
-  useEffect(() => {
-    const userData = JSON.parse(sessionStorage.getItem("userData") || "{}");
-    if (userData.token && userData.user) {
-      connect(userData.token, userData.user);
-    }
-  }, [connect]);
-
-  // Subscribe to status changes
-  useEffect(() => {
-    if (!client) return;
-    const subscription = client.subscribe("/topic/users/status-changes", (message) => {
-      try {
-        const data = JSON.parse(message.body);
-        setAgents((prev) =>
-          prev.map((a) =>
-            a.id === data.userId ? { ...a, status: data.status } : a
-          )
-        );
-      } catch (err) {
-        console.error("Failed to parse agent status message", err);
-      }
-    });
-    return () => subscription.unsubscribe();
-  }, [client]);
 
   // CRUD Handlers
   const handleAddAgent = async () => {
@@ -92,7 +70,7 @@ export default function AdminAgent() {
 
   const handleBlockAgent = async (agentId) => {
     try {
-      await axios.put(`${API_BASE_URL}/agent/${agentId}/block`);
+      await axios.put(`${API_BASE_URL}/user/${agentId}/block`);
       setAgents((prev) =>
         prev.map((a) =>
           a.id === agentId ? { ...a, active: false, status: "OFFLINE" } : a
@@ -105,7 +83,7 @@ export default function AdminAgent() {
 
   const handleUnBlockAgent = async (agentId) => {
     try {
-      await axios.put(`${API_BASE_URL}/agent/${agentId}/unblock`);
+      await axios.put(`${API_BASE_URL}/user/${agentId}/unblock`);
       fetchAgents(searchKeyword);
     } catch (err) {
       console.error(err);
@@ -123,7 +101,8 @@ export default function AdminAgent() {
     } finally {
         setIsDetailLoading(false);
     }
-};
+  };
+
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">

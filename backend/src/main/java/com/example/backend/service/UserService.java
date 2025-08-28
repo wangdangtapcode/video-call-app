@@ -42,7 +42,7 @@ public class UserService {
                 user.setStatus(status);
                 userRepository.save(user);
 
-                webSocketBroadcastService.broadcastUserStatusChange(userId, status);
+                webSocketBroadcastService.broadcastUserStatusChange(user, status);
             }
         }
     }

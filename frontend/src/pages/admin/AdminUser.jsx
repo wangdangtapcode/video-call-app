@@ -5,12 +5,13 @@ import { useWebSocket } from "../../context/WebSocketContext";
 import SearchBar from "../../components/AdminUser/SearchBar";
 import AddUserModal from "../../components/AdminUser/AddUserModel";
 import UserTable from "../../components/AdminUser/UserTable";
+import { useUserSubscriptions } from "../../hooks/useUserSubscriptions";
 // import SearchBar from "../../components/AdminUser/SearchBar";
 // import UserTable from "../../components/AdminUser/UserTable";
 // import AddUserModal from "../../components/AdminUser/AddUserModal";
 
 export default function AdminUser() {
-  const [users, setUsers] = useState([]);
+  const {users, setUsers} = useUserSubscriptions();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newUser, setNewUser] = useState({ fullName: "", role: "USER" });
   const [searchKeyword, setSearchKeyword] = useState("");
@@ -43,24 +44,6 @@ export default function AdminUser() {
       connect(userData.token, userData.user);
     }
   }, [connect]);
-
-  // Subscribe to status changes
-  useEffect(() => {
-    if (!client) return;
-    const subscription = client.subscribe("/topic/users/status-changes", (message) => {
-      try {
-        const data = JSON.parse(message.body);
-        setUsers((prev) =>
-          prev.map((u) =>
-            u.id === data.userId ? { ...u, status: data.status} : u
-          )
-        );
-      } catch (err) {
-        console.error("Failed to parse user status message", err);
-      }
-    });
-    return () => subscription.unsubscribe();
-  }, [client]);
 
   // CRUD Handlers
   const handleAddUser = async () => {

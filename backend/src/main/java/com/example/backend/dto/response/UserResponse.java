@@ -12,6 +12,7 @@ public class UserResponse {
     private String fullName;
     private String email;
     private String status;
+    private String provider;
     private boolean isActive;
     private String role;
 }

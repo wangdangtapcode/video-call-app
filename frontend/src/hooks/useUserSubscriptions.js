@@ -4,7 +4,7 @@ import { useUser } from "../context/UserContext";
 import axios from "axios";
 
 export const useUserSubscriptions = () => {
-  const { user, isAgent, userMetric, token } = useUser();
+  const { user, isAgent, userMetric, token, logout } = useUser();
 
   // User-specific states
   const [notifications, setNotifications] = useState([]);
@@ -16,6 +16,19 @@ export const useUserSubscriptions = () => {
   const [onlineAgents, setOnlineAgents] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingAgents, setIsLoadingAgents] = useState(false);
+
+  const [userOnlineCount, setUserOnlineCount] = useState(0);
+  const [agentOnlineCount, setAgentOnlineCount] = useState(0);
+  const [callCount, setCallCount] = useState(0);
+  const [avgRating, setAvgRating] = useState(0);
+  const [totalCalls, setTotalCalls] = useState(0);
+  const [totalCallTime, setTotalCallTime] = useState(0);
+  const [agentData, setAgentData] = useState([]);
+
+  const [users, setUsers] = useState([]);
+  const [agents, setAgents] = useState([]);
+
+  const [logs, setLogs] = useState([]);
 
   const API_BASE_URL = "http://localhost:8081/api";
 
@@ -71,6 +84,7 @@ export const useUserSubscriptions = () => {
       const { userId, status, timestamp, fullName, email } = data;
       console.log("User status change received:", {
         userId,
+        fullName,
         status,
         timestamp,
       });
@@ -83,11 +97,35 @@ export const useUserSubscriptions = () => {
         console.log(
           "User status changed, reloading online agents list after a short delay..."
         );
+        setUsers((prev) =>
+          prev.map((u) =>
+            u.id === userId ? { ...u, status: status} : u
+          )
+        );
+
+        setAgents((prev) =>
+          prev.map((u) =>
+            u.id === userId ? { ...u, status: status} : u
+          )
+        );
+        setLogs((prev) => [...prev, {userId, fullName, status, timestamp}]);
+
+        fetchTotals();
         loadOnlineAgents();
       }, 500);
     } catch (error) {
       console.error("Error handling user status change:", error);
     }
+  });
+
+  useRoleChannelListener("FORCE_LOGOUT", (data) => {
+
+    console.log("FORCE_LOGOUT event received:", data);
+    console.warn("🚨 FORCE_LOGOUT received!");
+
+    alert("You have been logged out by admin.");
+    // Thoát session
+    logout();
   });
 
   // Agent presence functions (moved from useAgentPresence)
@@ -113,6 +151,37 @@ export const useUserSubscriptions = () => {
     }
   }, [token]);
 
+
+  const fetchTotals = useCallback(async () => {
+    try {
+      const [
+        userRes,
+        agentRes,
+        callRes,
+        metricRes,
+        agentMetricsRes,
+      ] = await Promise.all([
+        axios.get(`${API_BASE_URL}/user/total`),
+        axios.get(`${API_BASE_URL}/agent/total`),
+        axios.get(`${API_BASE_URL}/agent/call/total`),
+        axios.get(`${API_BASE_URL}/agent/summary`),
+        axios.get(`${API_BASE_URL}/agent/all`),
+      ]);
+
+      setUserOnlineCount(userRes.data.total);
+      setAgentOnlineCount(agentRes.data.total);
+      setCallCount(callRes.data.total);
+
+      setAvgRating(metricRes.data.avgRating || 0);
+      setTotalCalls(metricRes.data.totalCalls || 0);
+      setTotalCallTime(metricRes.data.totalCallTime || 0);
+
+      setAgentData(agentMetricsRes.data);
+    } catch (err) {
+      console.error("Error fetching totals:", err);
+    }
+  }, []);
+
   // Initialize agent status from userMetric
   // useEffect(() => {
   //   if (user && isAgent && userMetric) {
@@ -120,6 +189,8 @@ export const useUserSubscriptions = () => {
   //     setAgentStatus(initialStatus);
   //   }
   // }, [user, isAgent, userMetric]);
+
+  
 
   return {
     // User subscription data
@@ -136,5 +207,22 @@ export const useUserSubscriptions = () => {
 
     // Agent presence functions
     loadOnlineAgents,
+
+    userOnlineCount,
+    agentOnlineCount,
+    callCount,
+    avgRating,
+    totalCalls,
+    totalCallTime,
+    agentData,
+
+    fetchTotals,
+
+    users,
+    agents,
+    logs,
+
+    setUsers, 
+    setAgents,
   };
 };
