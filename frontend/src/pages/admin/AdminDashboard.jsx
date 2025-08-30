@@ -15,6 +15,7 @@ import {
 import KPICard from "../../components/AdminDashboard/KPICard";
 import { useUserSubscriptions } from "../../hooks/useUserSubscriptions";
 import StarRating from "../../components/AdminDashboard/StarRating";
+import { useAdminSubscriptions } from "../../hooks/useAdminSubscriptions";
 
 // import KPICard from "../../components/AdminDashboard/KPICard";
 
@@ -23,12 +24,11 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, Tooltip, 
 export const AdminDashboard = () => {
 
   const {userOnlineCount, agentOnlineCount, callCount, avgRating,
-    totalCalls, totalCallTime, agentData, logs, fetchTotals} = useUserSubscriptions();
-
+    totalCalls, totalCallTime, agentData, logs, fetchTotals} = useAdminSubscriptions();
+  
   useEffect(() => {
     fetchTotals();
   }, []);
-
 
   const formatTime = (seconds) => {
     const h = Math.floor(seconds / 3600);
@@ -37,64 +37,63 @@ export const AdminDashboard = () => {
     return `${h}h ${m}m ${s}s`;
   };
 
+  // const barChartData = {
+  //   labels: agentData.map(d => d.fullName + " " + d.id),
+  //   datasets: [
+  //     {
+  //       label: "Total Calls",
+  //       data: agentData.map(d => d.totalCall),
+  //       backgroundColor: "rgba(54, 162, 235, 0.7)"
+  //     },
+  //     {
+  //       label: "Total Call Time (min)",
+  //       data: agentData.map(d => d.totalCallTime / 60),
+  //       backgroundColor: "rgba(255, 99, 132, 0.7)"
+  //     }
+  //   ]
+  // };
 
-  const barChartData = {
-    labels: agentData.map(d => d.fullName + " " + d.id),
-    datasets: [
-      {
-        label: "Total Calls",
-        data: agentData.map(d => d.totalCall),
-        backgroundColor: "rgba(54, 162, 235, 0.7)"
-      },
-      {
-        label: "Total Call Time (min)",
-        data: agentData.map(d => d.totalCallTime / 60),
-        backgroundColor: "rgba(255, 99, 132, 0.7)"
-      }
-    ]
-  };
+  // const bubbleChartData = {
+  //   datasets: agentData.map((d, i) => {
+  //     const hue = (i * 40) % 360; // xoay vòng quanh color wheel
+  //     return {
+  //       label: `${d.fullName} ${d.id}`,
+  //       data: [{ x: d.totalCall, y: d.totalCallTime / 60, r: d.rating*5}],
+  //       backgroundColor: `hsla(${hue}, 70%, 50%, 0.7)`
+  //     };
+  //   })
+  // };
 
-  const bubbleChartData = {
-    datasets: agentData.map((d, i) => {
-      const hue = (i * 40) % 360; // xoay vòng quanh color wheel
-      return {
-        label: `${d.fullName} ${d.id}`,
-        data: [{ x: d.totalCall, y: d.totalCallTime / 60, r: d.rating*5}],
-        backgroundColor: `hsla(${hue}, 70%, 50%, 0.7)`
-      };
-    })
-  };
+  // const chartOptions = {
+  //   responsive: true,
+  //   plugins: { legend: { position: "top" } }
+  // };
 
-  const chartOptions = {
-    responsive: true,
-    plugins: { legend: { position: "top" } }
-  };
+  // const bubbleOptions = {
+  //   responsive: true,
+  //   plugins: {
+  //     legend: { display: true, position: "right" },
+  //     tooltip: {
+  //       callbacks: {
+  //         label: function (context) {
+  //           const data = context.raw; // {x, y, r}
+  //           const dataset = context.dataset;
+  //           const agentLabel = dataset.label || "";
 
-  const bubbleOptions = {
-    responsive: true,
-    plugins: {
-      legend: { display: true, position: "right" },
-      tooltip: {
-        callbacks: {
-          label: function (context) {
-            const data = context.raw; // {x, y, r}
-            const dataset = context.dataset;
-            const agentLabel = dataset.label || "";
+  //           // y hiện đang là phút, nên đổi lại giây (hoặc hiển thị cả 2)
+  //           const callTimeMin = data.y;
+  //           const callTimeSec = callTimeMin * 60;
 
-            // y hiện đang là phút, nên đổi lại giây (hoặc hiển thị cả 2)
-            const callTimeMin = data.y;
-            const callTimeSec = callTimeMin * 60;
-
-            return `${agentLabel} | Calls: ${data.x}, Time: ${callTimeSec}s (${callTimeMin.toFixed(1)} min), Rating: ${(data.r / 5).toFixed(1)}`;
-          }
-        }
-      }
-    },
-    scales: {
-      x: { title: { display: true, text: "Total Calls" } },
-      y: { title: { display: true, text: "Total Call Time (min)" } }
-    }
-  };
+  //           return `${agentLabel} | Calls: ${data.x}, Time: ${callTimeSec.toFixed(1)}s (${callTimeMin.toFixed(1)} min), Rating: ${(data.r / 5).toFixed(1)}`;
+  //         }
+  //       }
+  //     }
+  //   },
+  //   scales: {
+  //     x: { title: { display: true, text: "Total Calls" } },
+  //     y: { title: { display: true, text: "Total Call Time (min)" } }
+  //   }
+  // };
 
   return (
     <div className="p-6 space-y-8 bg-gray-50 min-h-screen">
@@ -123,25 +122,7 @@ export const AdminDashboard = () => {
                 key={idx}
                 className="p-2 hover:bg-gray-100 flex justify-between items-center text-sm"
               >
-                <div>
-                  <span className="font-semibold text-gray-800">{log.fullName}</span>{" "}
-                  (<span className="text-gray-500">ID: {log.userId}</span>)
-                  {" - "}
-                  <span
-                    className={`font-medium ${
-                      log.status === "ONLINE"
-                        ? "text-green-600"
-                        : log.status === "OFFLINE"
-                        ? "text-red-600"
-                        : "text-gray-600"
-                    }`}
-                  >
-                    {log.status}
-                  </span>
-                </div>
-                <div className="text-gray-400 text-xs">
-                  {new Date(log.timestamp).toLocaleString()}
-                </div>
+                <span className="text-gray-700">{log}</span>
               </div>
             ))
           ) : (
@@ -150,7 +131,7 @@ export const AdminDashboard = () => {
         </div>
       </section>
 
-      {/* Charts */}
+      {/* Charts
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white p-6 shadow-md rounded-xl h-[400px]">
           <h2 className="text-lg font-semibold mb-4">Top Agent Comparison</h2>
@@ -161,8 +142,8 @@ export const AdminDashboard = () => {
           <h2 className="text-lg font-semibold mb-4">Agent Performance (Calls vs Time vs Rating)</h2>
           <Bubble data={bubbleChartData} options={bubbleOptions} />
         </div>
-      </section>
-    </div>
+      </section> */}
+    </div> 
   );
 
 };

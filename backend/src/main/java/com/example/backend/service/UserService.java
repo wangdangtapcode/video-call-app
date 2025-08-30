@@ -13,6 +13,10 @@ import com.example.backend.model.UserMetric;
 import com.example.backend.repository.UserMetricRepository;
 import com.example.backend.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -73,21 +77,21 @@ public class UserService {
         return userMapper.toResponse(savedUser);
     }
 
-    public List<UserResponse> getAllUser() {
-        List<User> listUser = userRepository.findAll();
-        return listUser.stream()
-                .sorted((a, b) -> a.getId().compareTo(b.getId())) // sort tăng dần theo id
-                .map(userMapper::toResponse)
-                .toList();
-    }
-
-    public List<UserResponse> searchUser(String keyword) {
-        List<User> listUser = userRepository.findByFullNameContainingIgnoreCase(keyword);
-        return listUser.stream()
-                .sorted((a, b) -> a.getId().compareTo(b.getId())) // sort tăng dần theo id
-                .map(userMapper::toResponse)
-                .toList();
-    }
+//    public List<UserResponse> getAllUser() {
+//        List<User> listUser = userRepository.findAll();
+//        return listUser.stream()
+//                .sorted((a, b) -> a.getId().compareTo(b.getId())) // sort tăng dần theo id
+//                .map(userMapper::toResponse)
+//                .toList();
+//    }
+//
+//    public List<UserResponse> searchUser(String keyword) {
+//        List<User> listUser = userRepository.findByFullNameContainingIgnoreCase(keyword);
+//        return listUser.stream()
+//                .sorted((a, b) -> a.getId().compareTo(b.getId())) // sort tăng dần theo id
+//                .map(userMapper::toResponse)
+//                .toList();
+//    }
 
     //
     public UserResponse getUserById(Long id){
@@ -132,12 +136,50 @@ public class UserService {
         return new TotalResponse(totalUser);
     }
 
-    public List<UserResponse> getAllAgent(){
-        List<User> listUser = userRepository.findByRole("AGENT");
-        return listUser.stream()
-                .map(userMapper::toResponse)
-                .toList();
+    public Page<AgentResponse> getAllAgent(String keyword, int page, int size, String sort) {
+        String[] sortParts = sort != null ? sort.split(",") : new String[]{"id", "asc"};
+        String field = sortParts[0];
+        Sort.Direction direction = sortParts.length > 1 && sortParts[1].equalsIgnoreCase("desc")
+                ? Sort.Direction.DESC : Sort.Direction.ASC;
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, field));
+
+        Page<User> agentPage;
+        if (keyword == null || keyword.isEmpty()) {
+            // không search → lấy toàn bộ agent
+            agentPage = userRepository.findByRole("AGENT", pageable);
+        } else {
+            // search theo fullName
+            agentPage = userRepository.findByRoleAndFullNameContainingIgnoreCase("AGENT", keyword, pageable);
+        }
+
+        return agentPage.map(user -> {
+            UserMetric metric = userMetricRepository.findByUserId(user.getId())
+                    .orElseThrow(() -> BusinessException.userNotFound(user.getId()));
+            return userMapper.toAgentResponse(metric);
+        });
     }
+
+    public Page<UserResponse> getAllUser(String keyword, int page, int size, String sort) {
+        String[] sortParts = sort != null ? sort.split(",") : new String[]{"id", "asc"};
+        String field = sortParts[0];
+        Sort.Direction direction = sortParts.length > 1 && sortParts[1].equalsIgnoreCase("desc")
+                ? Sort.Direction.DESC : Sort.Direction.ASC;
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, field));
+
+        Page<User> userPage;
+        if (keyword == null || keyword.isEmpty()) {
+            // không search → lấy toàn bộ agent
+            userPage = userRepository.findByRole("USER", pageable);
+        } else {
+            // search theo fullName
+            userPage = userRepository.findByRoleAndFullNameContainingIgnoreCase("USER", keyword, pageable);
+        }
+
+        return userPage.map(userMapper::toResponse);
+    }
+
 
     public AgentResponse getDetailAgentById(Long id){
         User user = userRepository.findByIdAndRole(id, "AGENT")
@@ -148,12 +190,27 @@ public class UserService {
         return userMapper.toAgentResponse(userMetric);
     }
 
-    public List<AgentResponse> getAllDetailAgent(){
-        List<UserMetric> userMetric = userMetricRepository.findAll();
-        return userMetric.stream()
-                .map(userMapper:: toAgentResponse)
-                .toList();
+    public AgentResponse getTopByRating(){
+        UserMetric userMetric = userMetricRepository.findTopByOrderByRatingDesc();
+        return userMapper.toAgentResponse(userMetric);
     }
+
+    public AgentResponse getTopByTotalCalls(){
+        UserMetric userMetric = userMetricRepository.findTopByOrderByTotalCallsDesc();
+        return userMapper.toAgentResponse(userMetric);
+    }
+
+    public AgentResponse getTopByTotalCallTimes(){
+        UserMetric userMetric = userMetricRepository.findTopByOrderByTotalCallTimeDesc();
+        return userMapper.toAgentResponse(userMetric);
+    }
+
+//    public List<AgentResponse> getAllDetailAgent(){
+//        List<UserMetric> userMetric = userMetricRepository.findAll();
+//        return userMetric.stream()
+//                .map(userMapper:: toAgentResponse)
+//                .toList();
+//    }
 //    public UserResponse updateUserById(Long id, UserRequest userRequest){
 //        User user = userRepository.findById(id)
 //                .orElseThrow(() -> BusinessException.userNotFound(id));

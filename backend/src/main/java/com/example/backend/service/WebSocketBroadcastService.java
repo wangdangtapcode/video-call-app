@@ -160,6 +160,10 @@ public class WebSocketBroadcastService {
                 userId.toString(),
                 "/topic/support-updates",
                 notification);
+        messagingTemplate.convertAndSendToUser(
+                "1",
+                "/topic/support-updates",
+                notification);
 
         System.out.println("notification: " + notification);
         System.out.println("Sent WebSocket message to user " + userId + ": " + type);

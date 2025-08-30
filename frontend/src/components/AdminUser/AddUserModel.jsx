@@ -1,9 +1,8 @@
-// src/components/admin/AddUserModal.jsx
 export default function AddUserModal({ newUser, setNewUser, onSave, onClose }) {
   return (
     <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
       <div className="bg-white p-6 rounded-xl shadow-xl w-96 animate-fade-in">
-        <h2 className="text-xl font-semibold mb-4 text-gray-800">➕ Add New User</h2>
+        <h2 className="text-xl font-semibold mb-4 text-gray-800">➕ Add New</h2>
         <div className="space-y-4">
           <div>
             <label className="block mb-1 text-sm font-medium text-gray-600">Full Name</label>

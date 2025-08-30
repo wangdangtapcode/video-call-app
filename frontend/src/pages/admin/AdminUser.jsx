@@ -5,27 +5,34 @@ import { useWebSocket } from "../../context/WebSocketContext";
 import SearchBar from "../../components/AdminUser/SearchBar";
 import AddUserModal from "../../components/AdminUser/AddUserModel";
 import UserTable from "../../components/AdminUser/UserTable";
-import { useUserSubscriptions } from "../../hooks/useUserSubscriptions";
-// import SearchBar from "../../components/AdminUser/SearchBar";
-// import UserTable from "../../components/AdminUser/UserTable";
-// import AddUserModal from "../../components/AdminUser/AddUserModal";
+import { useAdminSubscriptions } from "../../hooks/useAdminSubscriptions";
 
 export default function AdminUser() {
-  const {users, setUsers} = useUserSubscriptions();
+  const { users, setUsers } = useAdminSubscriptions();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newUser, setNewUser] = useState({ fullName: "", role: "USER" });
   const [searchKeyword, setSearchKeyword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const { client, connect } = useWebSocket();
+  // pagination states
+  const [page, setPage] = useState(0); // page index (0-based)
+  const [totalPages, setTotalPages] = useState(1);
+  const [pageSize] = useState(5); // số dòng / page cố định
+
+  const { connect } = useWebSocket();
   const API_BASE_URL = "http://localhost:8081/api";
 
-  // Fetch users
-  const fetchUsers = async (keyword = "") => {
+  // Fetch users with pagination
+  const fetchUsers = async (keyword = "", pageNumber = 0) => {
     try {
       setIsLoading(true);
-      const res = await axios.get(`${API_BASE_URL}/user?q=${keyword}&sort=id,asc`);
-      setUsers(res.data);
+      const res = await axios.get(
+        `${API_BASE_URL}/user?q=${keyword}&page=${pageNumber}&size=${pageSize}&sort=id,asc`
+      );
+
+      setUsers(res.data.content);
+      setTotalPages(res.data.totalPages);
+      setPage(res.data.number);
     } catch (err) {
       console.error(err);
     } finally {
@@ -34,8 +41,8 @@ export default function AdminUser() {
   };
 
   useEffect(() => {
-    fetchUsers(searchKeyword);
-  }, [searchKeyword]);
+    fetchUsers(searchKeyword, page);
+  }, [searchKeyword, page]);
 
   // Connect WebSocket on mount
   useEffect(() => {
@@ -51,7 +58,7 @@ export default function AdminUser() {
       await axios.post(`${API_BASE_URL}/user`, newUser);
       setIsModalOpen(false);
       setNewUser({ fullName: "", role: "USER" });
-      fetchUsers(searchKeyword);
+      fetchUsers(searchKeyword, page);
     } catch (err) {
       console.error(err);
     }
@@ -60,7 +67,7 @@ export default function AdminUser() {
   const handleDeleteUser = async (userId) => {
     try {
       await axios.delete(`${API_BASE_URL}/user/${userId}`);
-      fetchUsers(searchKeyword);
+      fetchUsers(searchKeyword, page);
     } catch (err) {
       console.error(err);
     }
@@ -69,12 +76,11 @@ export default function AdminUser() {
   const handleBlockUser = async (userId) => {
     try {
       await axios.put(`${API_BASE_URL}/user/${userId}/block`);
-      // fetchUsers(searchKeyword);
       setUsers((prev) =>
-          prev.map((u) =>
-            u.id === userId ? { ...u, active: false, status: "OFFLINE"} : u
-          )
-        );
+        prev.map((u) =>
+          u.id === userId ? { ...u, active: false, status: "OFFLINE" } : u
+        )
+      );
     } catch (err) {
       console.error(err);
     }
@@ -83,7 +89,7 @@ export default function AdminUser() {
   const handleUnBlockUser = async (userId) => {
     try {
       await axios.put(`${API_BASE_URL}/user/${userId}/unblock`);
-      fetchUsers(searchKeyword);
+      fetchUsers(searchKeyword, page);
     } catch (err) {
       console.error(err);
     }
@@ -92,7 +98,9 @@ export default function AdminUser() {
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-semibold text-gray-800">👥 User Management</h1>
+        <h1 className="text-2xl font-semibold text-gray-800">
+          👥 User Management
+        </h1>
         <SearchBar
           value={searchKeyword}
           onChange={setSearchKeyword}
@@ -103,6 +111,10 @@ export default function AdminUser() {
       <UserTable
         users={users}
         isLoading={isLoading}
+        page={page}
+        totalPages={totalPages}
+        pageSize={pageSize}
+        onPageChange={(newPage) => setPage(newPage)}
         onBlock={handleBlockUser}
         onUnblock={handleUnBlockUser}
         onDelete={handleDeleteUser}

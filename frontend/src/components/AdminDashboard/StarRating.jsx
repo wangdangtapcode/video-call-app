@@ -1,20 +1,25 @@
 import { Star } from "lucide-react";
 
-const StarRating = ({ rating }) => {
-  const fullStars = Math.floor(rating);
-  const halfStar = rating % 1 >= 0.5;
+const StarRating = ({ rating = 0 }) => {
+  const safeRating = Number(rating) || 0; // fallback nếu rating null/undefined
+  const fullStars = Math.floor(safeRating);
+  const halfStar = safeRating % 1 >= 0.5;
   const emptyStars = 5 - fullStars - (halfStar ? 1 : 0);
 
   return (
     <div className="flex items-center">
       {[...Array(fullStars)].map((_, i) => (
-        <Star key={`full-${i}`} className="text-yellow-400 fill-yellow-400" size={18} />
+        <Star key={`full-${i}`} className="w-5 h-5 text-yellow-400 fill-yellow-400" />
       ))}
-      {halfStar && <Star className="text-yellow-400 fill-yellow-200" size={18} />}
+      {halfStar && (
+        <Star key="half" className="w-5 h-5 text-yellow-400 fill-yellow-200" />
+      )}
       {[...Array(emptyStars)].map((_, i) => (
-        <Star key={`empty-${i}`} className="text-gray-300" size={18} />
+        <Star key={`empty-${i}`} className="w-5 h-5 text-gray-300" />
       ))}
-      <span className="ml-2 text-sm text-gray-500">({rating.toFixed(2)})</span>
+      <span className="ml-2 text-sm text-gray-600">
+        {safeRating.toFixed(1)}
+      </span>
     </div>
   );
 };

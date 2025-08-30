@@ -3,7 +3,10 @@ package com.example.backend.repository;
 import com.example.backend.enums.UserStatus;
 import com.example.backend.enums.UserStatus;
 import com.example.backend.model.User;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -17,13 +20,16 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByGoogleId(String googleId);
     Boolean existsByEmail(String email);
     long countByRoleAndStatus(String role, UserStatus status);
-    List<User> findAllByStatus(String status);
+//    List<User> findAllByStatus(String status);
 
     List<User> findByFullNameContainingIgnoreCase(String fullName);
 
 //    Long countByRoleAndStatus(String role, UserStatus status);
 
-    List<User> findByRole(String role);
+    Page<User> findByRole(String role, Pageable pageable);
 
     Optional<User> findByIdAndRole(Long id, String role);
+
+    Page<User> findByRoleAndFullNameContainingIgnoreCase(String role, String keyword, Pageable pageable);
+
 }

@@ -17,26 +17,17 @@ export const useUserSubscriptions = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingAgents, setIsLoadingAgents] = useState(false);
 
-  const [userOnlineCount, setUserOnlineCount] = useState(0);
-  const [agentOnlineCount, setAgentOnlineCount] = useState(0);
-  const [callCount, setCallCount] = useState(0);
-  const [avgRating, setAvgRating] = useState(0);
-  const [totalCalls, setTotalCalls] = useState(0);
-  const [totalCallTime, setTotalCallTime] = useState(0);
-  const [agentData, setAgentData] = useState([]);
-
   const [users, setUsers] = useState([]);
   const [agents, setAgents] = useState([]);
 
-  const [logs, setLogs] = useState([]);
-
   const API_BASE_URL = "http://localhost:8081/api";
+
+  
 
   // Support-related notifications for users
   useRoleChannelListener("request_matched", (data) => {
     console.log("User received support request match:", data);
     setNotifications((prev) => [data, ...prev.slice(0, 49)]);
-
   });
 
   useRoleChannelListener("request_timeout", (data) => {
@@ -45,6 +36,7 @@ export const useUserSubscriptions = () => {
   });
 
   useRoleChannelListener("agent_accepted", (data) => {
+    const {request} = data;
     console.log("Agent accepted support request:", data);
     setNotifications((prev) => [data, ...prev.slice(0, 49)]);
     // setSupportUpdates((prev) => [data, ...prev]);
@@ -56,6 +48,7 @@ export const useUserSubscriptions = () => {
     //     window.location.href = `/call/${requestId}`;
     //   }
     // }, 2000);
+
   });
 
   useRoleChannelListener("agent_rejected", (data) => {
@@ -97,20 +90,7 @@ export const useUserSubscriptions = () => {
         console.log(
           "User status changed, reloading online agents list after a short delay..."
         );
-        setUsers((prev) =>
-          prev.map((u) =>
-            u.id === userId ? { ...u, status: status} : u
-          )
-        );
 
-        setAgents((prev) =>
-          prev.map((u) =>
-            u.id === userId ? { ...u, status: status} : u
-          )
-        );
-        setLogs((prev) => [...prev, {userId, fullName, status, timestamp}]);
-
-        fetchTotals();
         loadOnlineAgents();
       }, 500);
     } catch (error) {
@@ -151,37 +131,6 @@ export const useUserSubscriptions = () => {
     }
   }, [token]);
 
-
-  const fetchTotals = useCallback(async () => {
-    try {
-      const [
-        userRes,
-        agentRes,
-        callRes,
-        metricRes,
-        agentMetricsRes,
-      ] = await Promise.all([
-        axios.get(`${API_BASE_URL}/user/total`),
-        axios.get(`${API_BASE_URL}/agent/total`),
-        axios.get(`${API_BASE_URL}/agent/call/total`),
-        axios.get(`${API_BASE_URL}/agent/summary`),
-        axios.get(`${API_BASE_URL}/agent/all`),
-      ]);
-
-      setUserOnlineCount(userRes.data.total);
-      setAgentOnlineCount(agentRes.data.total);
-      setCallCount(callRes.data.total);
-
-      setAvgRating(metricRes.data.avgRating || 0);
-      setTotalCalls(metricRes.data.totalCalls || 0);
-      setTotalCallTime(metricRes.data.totalCallTime || 0);
-
-      setAgentData(agentMetricsRes.data);
-    } catch (err) {
-      console.error("Error fetching totals:", err);
-    }
-  }, []);
-
   // Initialize agent status from userMetric
   // useEffect(() => {
   //   if (user && isAgent && userMetric) {
@@ -208,19 +157,8 @@ export const useUserSubscriptions = () => {
     // Agent presence functions
     loadOnlineAgents,
 
-    userOnlineCount,
-    agentOnlineCount,
-    callCount,
-    avgRating,
-    totalCalls,
-    totalCallTime,
-    agentData,
-
-    fetchTotals,
-
     users,
     agents,
-    logs,
 
     setUsers, 
     setAgents,

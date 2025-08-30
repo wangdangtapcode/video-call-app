@@ -19,4 +19,13 @@ public interface UserMetricRepository extends JpaRepository<UserMetric, Long> {
 
     @Query("SELECT SUM(u.totalCallTime) FROM UserMetric u")
     Long findTotalCallTimeToday();
+
+    // Top 1 rating cao nhất
+    UserMetric findTopByOrderByRatingDesc();
+
+    // Top 1 số cuộc gọi nhiều nhất
+    UserMetric findTopByOrderByTotalCallsDesc();
+
+    // Top 1 tổng thời gian gọi lâu nhất
+    UserMetric findTopByOrderByTotalCallTimeDesc();
 }
