@@ -133,13 +133,11 @@ export const useAdminSubscriptions = () => {
             agentRes,
             callRes,
             metricRes,
-            agentMetricsRes,
         ] = await Promise.all([
             axios.get(`${API_BASE_URL}/user/total`),
             axios.get(`${API_BASE_URL}/agent/total`),
             axios.get(`${API_BASE_URL}/agent/call/total`),
             axios.get(`${API_BASE_URL}/agent/summary`),
-            axios.get(`${API_BASE_URL}/agent/all`),
         ]);
 
         setUserOnlineCount(userRes.data.total);
@@ -150,7 +148,6 @@ export const useAdminSubscriptions = () => {
         setTotalCalls(metricRes.data.totalCalls || 0);
         setTotalCallTime(metricRes.data.totalCallTime || 0);
 
-        setAgentData(agentMetricsRes.data);
         } catch (err) {
         console.error("Error fetching totals:", err);
         }

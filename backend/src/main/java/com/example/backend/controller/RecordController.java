@@ -2,10 +2,15 @@ package com.example.backend.controller;
 
 import com.example.backend.dto.response.RecordResponse;
 import com.example.backend.dto.response.RecordUrlResponse;
+import com.example.backend.dto.response.RecordingResponse;
 import com.example.backend.dto.response.S3TreeResponse;
 import com.example.backend.service.RecordService;
 import com.example.backend.service.S3TreeService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -25,11 +30,22 @@ public class RecordController {
 
     @Autowired
     private S3TreeService s3TreeService;
+
     @GetMapping
-    public ResponseEntity<List<RecordResponse>> listVideos(
+    public ResponseEntity<Page<RecordingResponse>> listVideos(
+            @RequestParam(required = false) Long agentId,
+            @RequestParam(required = false) Long userId,
             @RequestParam(required = false) String startDate,
-            @RequestParam(required = false) String endDate) {
-        return ResponseEntity.ok(recordService.listVideos(startDate, endDate));
+            @RequestParam(required = false) String endDate,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("startedAt").descending());
+
+        Page<RecordingResponse> recordings = recordService.getRecords(agentId, userId, startDate, endDate, pageable);
+
+        return ResponseEntity.ok(recordings);
     }
 
     @GetMapping("/url")

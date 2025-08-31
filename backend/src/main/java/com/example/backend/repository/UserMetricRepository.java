@@ -11,7 +11,7 @@ import java.util.Optional;
 public interface UserMetricRepository extends JpaRepository<UserMetric, Long> {
     Optional<UserMetric> findByUserId(Long userId);
 
-    @Query("SELECT AVG(u.rating) FROM UserMetric u")
+    @Query("SELECT AVG(u.rating) FROM UserMetric u WHERE u.totalCalls > 0")
     Double findAvgRating();
 
     @Query("SELECT SUM(u.totalCalls) FROM UserMetric u")

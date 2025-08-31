@@ -1,170 +1,197 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useEffect, useState, useRef } from "react";
 import axios from "axios";
 
-const AdminRecord = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [currentFolder, setCurrentFolder] = useState(null);
-  const [selectedVideo, setSelectedVideo] = useState(null);
-  const [layout, setLayout] = useState(() => localStorage.getItem("adminRecordLayout") || "grid");
+export default function AdminRecord() {
+  const [records, setRecords] = useState([]);
+  const [agents, setAgents] = useState([]);
+  const [users, setUsers] = useState([]);
 
-  const folderKey = location.pathname.replace("/admin/record/", "") || "";
+  const [agentKeyword, setAgentKeyword] = useState("");
+  const [userKeyword, setUserKeyword] = useState("");
 
-  const handleSetLayout = (newLayout) => {
-    setLayout(newLayout);
-    localStorage.setItem("adminRecordLayout", newLayout);
+  const [page, setPage] = useState(0);
+  const [size] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const [filters, setFilters] = useState({
+    agentId: "",
+    userId: "",
+    startDate: "",
+    endDate: ""
+  });
+
+  const API_BASE_URL = "http://localhost:8081/api";
+
+  const agentTimeoutRef = useRef(null);
+  const userTimeoutRef = useRef(null);
+
+  const fetchRecords = async () => {
+    try {
+      const params = { page, size, ...filters };
+      const res = await axios.get(`${API_BASE_URL}/record`, { params });
+      setRecords(res.data.content);
+      setTotalPages(res.data.totalPages);
+    } catch (error) {
+      console.error("Error fetching records:", error);
+    }
   };
 
-  const truncateName = (name, maxLength) =>
-    name.length <= maxLength ? name : name.slice(0, maxLength - 3) + "...";
-
-  const formatSize = (size) => {
-    if (!size || size === 0) return "-";
-    const i = Math.floor(Math.log(size) / Math.log(1024));
-    const sizes = ["B", "KB", "MB", "GB", "TB"];
-    return (size / Math.pow(1024, i)).toFixed(1) + " " + sizes[i];
+  const fetchAgents = async (keyword = "") => {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/agent?q=${keyword}&page=0&size=50&sort=id,asc`);
+      setAgents(res.data.content || []);
+    } catch (error) {
+      console.error("Error fetching agents:", error);
+    }
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return "-";
-    const date = new Date(dateString);
-    return date.toLocaleString();
+  const fetchUsers = async (keyword = "") => {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/user?q=${keyword}&page=0&size=50&sort=id,asc`);
+      setUsers(res.data.content || []);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+    }
   };
 
   useEffect(() => {
-    const fetchFolder = async () => {
-      try {
-        const res = await axios.get(
-          folderKey
-            ? `http://localhost:8081/api/record/tree?folderKey=${folderKey}`
-            : `http://localhost:8081/api/record/tree`
-        );
-        setCurrentFolder(res.data);
-      } catch (e) {
-        console.error("Error fetching folder:", e);
-      }
-    };
-    fetchFolder();
-  }, [folderKey]);
+    if (agentTimeoutRef.current) clearTimeout(agentTimeoutRef.current);
+    agentTimeoutRef.current = setTimeout(() => fetchAgents(agentKeyword), 500);
+  }, [agentKeyword]);
 
-  const handleFileClick = async (node) => {
-    try {
-      const res = await axios.get(`http://localhost:8081/api/record/url?key=${node.key}`);
-      setSelectedVideo(res.data.url);
-    } catch (e) {
-      console.error("Error loading video:", e);
-    }
+  useEffect(() => {
+    if (userTimeoutRef.current) clearTimeout(userTimeoutRef.current);
+    userTimeoutRef.current = setTimeout(() => fetchUsers(userKeyword), 500);
+  }, [userKeyword]);
+
+  useEffect(() => {
+    fetchRecords();
+  }, [page, filters]);
+
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({ ...prev, [name]: value }));
+    setPage(0);
   };
 
-  const handleFolderClick = (node) => navigate(`/admin/record/${node.key}`);
-
-  const handleDelete = async (node) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa "${node.name}"?`)) return;
-    try {
-      await axios.delete(`http://localhost:8081/api/record/delete?key=${node.key}`);
-      const res = await axios.get(
-        folderKey
-          ? `http://localhost:8081/api/record/tree?folderKey=${folderKey}`
-          : `http://localhost:8081/api/record/tree`
-      );
-      setCurrentFolder(res.data);
-    } catch (e) {
-      console.error("Error deleting:", e);
-    }
+  const formatDateTime = (isoString) => {
+    if (!isoString) return "";
+    return new Date(isoString).toLocaleString("en-GB", { hour12: false });
   };
 
   return (
-  <div className="p-6">
-    {/* Header */}
-    <div className="flex justify-between items-center mb-4">
-      <h1 className="text-2xl md:text-3xl font-bold">📁 Admin Record</h1>
-      <div className="space-x-2">
+    <div className="p-6 bg-white rounded-lg shadow-lg">
+      <h2 className="text-2xl font-bold mb-6 text-gray-800">Admin Record Management</h2>
+
+      {/* Filter Section */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+        <div>
+          <input
+            type="text"
+            placeholder="Search Agent..."
+            value={agentKeyword}
+            onChange={(e) => setAgentKeyword(e.target.value)}
+            className="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-blue-400"
+          />
+          <select
+            name="agentId"
+            value={filters.agentId}
+            onChange={handleFilterChange}
+            className="w-full border rounded px-3 py-2 mt-2 focus:ring-2 focus:ring-blue-400"
+          >
+            <option value="">All Agents</option>
+            {agents.map(agent => (
+              <option key={agent.id} value={agent.id}>{agent.fullName}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <input
+            type="text"
+            placeholder="Search User..."
+            value={userKeyword}
+            onChange={(e) => setUserKeyword(e.target.value)}
+            className="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-green-400"
+          />
+          <select
+            name="userId"
+            value={filters.userId}
+            onChange={handleFilterChange}
+            className="w-full border rounded px-3 py-2 mt-2 focus:ring-2 focus:ring-green-400"
+          >
+            <option value="">All Users</option>
+            {users.map(user => (
+              <option key={user.id} value={user.id}>{user.fullName}</option>
+            ))}
+          </select>
+        </div>
+
+        <input
+          type="date"
+          name="startDate"
+          value={filters.startDate}
+          onChange={handleFilterChange}
+          className="border rounded px-3 py-2 focus:ring-2 focus:ring-purple-400"
+        />
+        <input
+          type="date"
+          name="endDate"
+          value={filters.endDate}
+          onChange={handleFilterChange}
+          className="border rounded px-3 py-2 focus:ring-2 focus:ring-purple-400"
+        />
+      </div>
+
+      {/* Table Section */}
+      <div className="overflow-x-auto">
+        <table className="min-w-full border border-gray-300">
+          <thead className="bg-gray-100">
+            <tr>
+              {["ID", "Session", "Agent", "User", "Duration (s)", "File", "Started At", "Stopped At"].map(header => (
+                <th key={header} className="px-4 py-2 border-b text-left text-gray-700">{header}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {records.map(record => (
+              <tr key={record.id} className="hover:bg-gray-50">
+                <td className="px-4 py-2 border-b">{record.id}</td>
+                <td className="px-4 py-2 border-b">{record.sessionId}</td>
+                <td className="px-4 py-2 border-b">{record.agentFullName} (id: {record.agentId})</td>
+                <td className="px-4 py-2 border-b">{record.userFullName} (id: {record.userId})</td>
+                <td className="px-4 py-2 border-b">{record.duration}</td>
+                <td className="px-4 py-2 border-b">
+                  {record.s3Url && (
+                    <a href={record.s3Url} target="_blank" className="text-blue-500 underline hover:text-blue-700">View</a>
+                  )}
+                </td>
+                <td className="px-4 py-2 border-b">{formatDateTime(record.startedAt)}</td>
+                <td className="px-4 py-2 border-b">{formatDateTime(record.stoppedAt)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination */}
+      <div className="flex justify-center items-center gap-3 mt-6">
         <button
-          className={`px-3 py-1 rounded ${layout === "grid" ? "bg-blue-500 text-white" : "bg-gray-200"}`}
-          onClick={() => handleSetLayout("grid")}
+          disabled={page === 0}
+          onClick={() => setPage(prev => prev - 1)}
+          className="px-4 py-2 border rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
         >
-          Grid
+          Prev
         </button>
+        <span className="px-4 py-2 border rounded bg-gray-50">{page + 1} / {totalPages}</span>
         <button
-          className={`px-3 py-1 rounded ${layout === "list" ? "bg-blue-500 text-white" : "bg-gray-200"}`}
-          onClick={() => handleSetLayout("list")}
+          disabled={page + 1 >= totalPages}
+          onClick={() => setPage(prev => prev + 1)}
+          className="px-4 py-2 border rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
         >
-          List
+          Next
         </button>
       </div>
     </div>
-
-    {/* Folder/File list */}
-    {currentFolder?.children?.length > 0 ? (
-      <div
-        className={
-          layout === "grid"
-            ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4"
-            : "flex flex-col divide-y"
-        }
-      >
-        {currentFolder.children.map((child, idx) => (
-          <div
-            key={idx}
-            className={`p-3 flex items-center justify-between bg-white rounded-lg shadow-sm hover:shadow-md ${
-              layout === "list" ? "flex-row hover:bg-gray-50" : "flex-col items-center"
-            }`}
-          >
-            {/* Icon + Name + Info */}
-            <div
-              className={`cursor-pointer flex ${
-                layout === "list" ? "flex-row items-center flex-1 space-x-3" : "flex-col items-center mb-2"
-              }`}
-              onClick={() => (child.folder ? handleFolderClick(child) : handleFileClick(child))}
-            >
-              <div className="text-3xl">{child.folder ? "📁" : "📄"}</div>
-
-              <div className={layout === "list" ? "flex-1 flex justify-between items-center" : "flex flex-col items-center"}>
-                <p
-                  className={`text-sm font-medium truncate ${layout === "grid" ? "mb-1" : ""}`}
-                  title={child.name} // <- tooltip hiển thị tên đầy đủ
-                >
-                  {truncateName(child.name, layout === "grid" ? 15 : 100)}
-                </p>
-                <p className={`text-xs text-gray-500 ${layout === "list" ? "ml-2" : "text-center"}`}>
-                  {formatSize(child.size)} | {formatDate(child.lastModified)}
-                </p>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className={`flex space-x-2 ${layout === "grid" ? "mt-2" : ""}`}>
-              <button
-                className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm"
-                onClick={() => handleDelete(child)}
-              >
-                🗑️
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-    ) : (
-      <p className="text-gray-500">Thư mục trống</p>
-    )}
-
-    {/* Video modal */}
-    {selectedVideo && (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-4 max-w-3xl w-full relative">
-          <button
-            className="absolute top-2 right-2 text-gray-700 font-bold text-xl"
-            onClick={() => setSelectedVideo(null)}
-          >
-            &times;
-          </button>
-          <video src={selectedVideo} controls autoPlay className="w-full h-auto rounded" />
-        </div>
-      </div>
-    )}
-  </div>
-);
+  );
 }
-
-export default AdminRecord;

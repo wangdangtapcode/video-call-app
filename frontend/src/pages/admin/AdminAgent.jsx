@@ -181,7 +181,7 @@ export default function AdminAgent() {
             </h3>
             <p className="text-xl font-bold text-gray-800 mt-2">{topCalls.fullName}</p>
             <p className="text-lg font-semibold text-blue-600 mt-1">
-              {topCalls.totalCalls} calls
+              {topCalls.totalCall} calls
             </p>
           </div>
         )}
