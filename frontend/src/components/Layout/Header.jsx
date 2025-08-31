@@ -60,7 +60,7 @@ export const Header = () => {
   const handleProfile = () => {
     setIsDropdownOpen(false);
     // TODO: Điều hướng đến trang profile
-    console.log('Navigate to profile');
+    navigate('/agent/record');
   };
 
   const handleSettings = () => {

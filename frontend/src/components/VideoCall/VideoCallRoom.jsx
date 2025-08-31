@@ -91,6 +91,15 @@ export const VideoCallRoom = ({
   const [sentImages, setSentImages] = useState([]); // Danh sách ảnh đã gửi (agent)
   const [receivedImages, setReceivedImages] = useState([]); // Danh sách ảnh đã nhận (user)
   const [showImagesPanel, setShowImagesPanel] = useState(false); // Panel danh sách ảnh
+  
+  //State cho segment
+  const [autoRecordingData, setAutoRecordingData] = useState(null);
+  const [agentRecordingActive, setAgentRecordingActive] = useState(false);
+  const [recordingSegment, setRecordingSegment] = useState(null);
+
+  const [showPopup, setShowPopup] = useState(false);
+  const [message, setMessage] = useState("");
+
   // Refs
   const userVideoRef = useRef(null);
   const subscribersRef = useRef(null);
@@ -149,6 +158,7 @@ export const VideoCallRoom = ({
         await initializeSession();
         if (mounted) {
           startCallDuration();
+          await startAutoRecording();
         }
       } catch (error) {
         if (mounted) {
@@ -158,6 +168,24 @@ export const VideoCallRoom = ({
         }
       }
     };
+
+    const startAutoRecording = async () => {
+      try {
+        console.log("Starting auto recording for all calls");
+        const autoRecordingResult = await openViduService.current.startAutoRecording(
+          participants[0]?.id || userId, // agentId
+          participants[1]?.id || (isAgent ? userId : null), // userId  
+          requestId
+        );
+        
+        setAutoRecordingData(autoRecordingResult);
+        console.log("Auto recording started:", autoRecordingResult);
+      } catch (error) {
+        console.error("Error starting auto recording:", error);
+        
+      }
+    };
+
 
     initializeCall();
 
@@ -188,6 +216,17 @@ export const VideoCallRoom = ({
       }
     };
   }, []);
+  const stopAutoRecording = async () => {
+    try {
+      if (autoRecordingData) {
+        console.log("Stopping auto recording");
+        const result = await openViduService.current.stopAutoRecording();
+        console.log("Auto recording stopped:", result);
+      }
+    } catch (error) {
+      console.error("Error stopping auto recording:", error);
+    }
+  };
 
   const startCallDuration = () => {
     callStartTime.current = Date.now();
@@ -545,11 +584,11 @@ export const VideoCallRoom = ({
           );
           break;
         case "signal:recording":
-          setIsRecording(true);
+          setAgentRecordingActive(true);
           setCallStatus("recording");
           break;
         case "signal:recording-stop":
-          setIsRecording(false);
+          setAgentRecordingActive(false);
           setCallStatus("connected");
           if (data.recordingData) {
             setRecordingData(data.recordingData);
@@ -735,56 +774,56 @@ const handleSendImage = async (imageData) => {
     setShowAgentImagePreview(false);
   };
 
-  
-  const toggleRecording = async() => {
-    if(isRecording){
+  const toggleRecording = async () => {
+    if (agentRecordingActive) {
       try {
-        const recordingResult = await openViduService.current.stopRecording();
-        console.log("Recording stopped successfully:", recordingResult);
-        
-        // Lưu thông tin recording để hiển thị
-        setRecordingData(recordingResult);
-        setShowRecordingResult(true);
-        
-        // Gửi signal với thông tin recording
+        // Dừng agent recording segment
+        console.log("Stopping agent recording segment...", recordingSegment);
+        await openViduService.current.stopAgentRecording(recordingSegment.segmentId);
+        setAgentRecordingActive(false);
+        showPopupMessage("Record đã được lưu lại");
+        // Gửi signal để thông báo dừng recording segment
         openViduService.current.sendSignal("recording-stop", {
           userId,
           recording: false,
           timestamp: Date.now(),
-          recordingData: recordingResult
         });
+        
+        console.log("Agent recording segment stopped");
       } catch (error) {
-        console.error("Error stopping recording:", error);
+        console.error("Error stopping agent recording segment:", error);
         alert("Không thể dừng ghi hình. Vui lòng thử lại.");
       }
     } else {
       try {
-        console.log(participants);
-        await openViduService.current.startRecording(participants[0].id, participants[1].id);
+        // Bắt đầu agent recording segment
+        const segment = await openViduService.current.startAgentRecording();
+        setAgentRecordingActive(true);
+        setRecordingSegment(segment);
+        console.log("Starting agent recording segment...", segment);
+        // Gửi signal để thông báo bắt đầu recording segment
         openViduService.current.sendSignal("recording", {
           userId,
           recording: true,
           timestamp: Date.now(),
         });
+        
+        console.log("Agent recording segment started");
       } catch (error) {
-        console.error("Error starting recording:", error);
+        console.error("Error starting agent recording segment:", error);
         alert("Không thể bắt đầu ghi hình. Vui lòng thử lại.");
       }
     }
-
-        // Notify via WebSocket
-    // if (isWebSocketConnected) {
-    //   sendMessage(`/app/call/${requestId}/recording`, {
-    //     userId,
-    //     recording: newRecordingState,
-    //     timestamp: Date.now(),
-    //   });
-    // }
   };
+  
+
 
 
   const leaveSession = async () => {
     try {
+      if (isAgent){
+        await stopAutoRecording();
+      }
       console.log("Leaving OpenVidu session and updating user status...");
       
       // Leave OpenVidu session
@@ -806,6 +845,12 @@ const handleSendImage = async (imageData) => {
     } catch (error) {
       console.error("Error leaving session:", error);
     }
+  };
+
+  const showPopupMessage = (msg) => {
+    setMessage(msg);
+    setShowPopup(true);
+    setTimeout(() => setShowPopup(false), 3000);
   };
 
   const handleRetry = async () => {
@@ -1148,13 +1193,12 @@ const handleSendImage = async (imageData) => {
           {/* Video Toggle */}
           <button
             onClick={toggleVideo}
-            disabled={callStatus !== "connected"}
             className={`p-4 rounded-full transition-all duration-200 ${
               isVideoEnabled
                 ? "bg-gray-700 text-white hover:bg-gray-600"
                 : "bg-red-600 text-white hover:bg-red-700"
             } ${
-              callStatus !== "connected" ? "opacity-50 cursor-not-allowed" : ""
+              callStatus == "error" ? "opacity-50 cursor-not-allowed" : ""
             }`}
             title={isVideoEnabled ? "Tắt camera" : "Bật camera"}
           >
@@ -1168,13 +1212,12 @@ const handleSendImage = async (imageData) => {
           {/* Audio Toggle */}
           <button
             onClick={toggleAudio}
-            disabled={callStatus !== "connected"}
             className={`p-4 rounded-full transition-all duration-200 ${
               isAudioEnabled
                 ? "bg-gray-700 text-white hover:bg-gray-600"
                 : "bg-red-600 text-white hover:bg-red-700"
             } ${
-              callStatus !== "connected" ? "opacity-50 cursor-not-allowed" : ""
+              callStatus == "error" ? "opacity-50 cursor-not-allowed" : ""
             }`}
             title={isAudioEnabled ? "Tắt micro" : "Bật micro"}
           >
@@ -1188,13 +1231,12 @@ const handleSendImage = async (imageData) => {
           {/* Screen Share */}
           <button
             onClick={toggleScreenShare}
-            disabled={callStatus !== "connected"}
             className={`p-4 rounded-full transition-all duration-200 ${
               isScreenSharing
                 ? "bg-blue-600 text-white hover:bg-blue-700"
                 : "bg-gray-700 text-white hover:bg-gray-600"
             } ${
-              callStatus !== "connected" ? "opacity-50 cursor-not-allowed" : ""
+              callStatus == "error" ? "opacity-50 cursor-not-allowed" : ""
             }`}
             title={
               isScreenSharing ? "Dừng chia sẻ màn hình" : "Chia sẻ màn hình"
@@ -1207,9 +1249,8 @@ const handleSendImage = async (imageData) => {
           {isAgent && (
             <button
               onClick={takeScreenshot}
-              disabled={callStatus !== "connected"}
               className={`p-4 rounded-full bg-gray-700 text-white hover:bg-gray-600 transition-all duration-200 ${
-                callStatus !== "connected"
+                callStatus == "error"
                   ? "opacity-50 cursor-not-allowed"
                   : ""
               }`}
@@ -1224,11 +1265,11 @@ const handleSendImage = async (imageData) => {
             <button
               onClick={toggleRecording}
               className={`p-4 rounded-full transition-all duration-200 ${
-                isRecording
+                agentRecordingActive
                   ? "bg-red-600 text-white hover:bg-red-700 animate-pulse"
                   : "bg-gray-700 text-white hover:bg-gray-600"
               } ${
-                callStatus !== "connected" ? "opacity-50 cursor-not-allowed" : ""
+                callStatus == "error" ? "opacity-50 cursor-not-allowed" : ""
               }`}
               title={isRecording ? "Dừng ghi hình" : "Bắt đầu ghi hình"}
             >
@@ -1460,80 +1501,6 @@ const handleSendImage = async (imageData) => {
           </div>
         </div>
       )}
-      {/* Recording Result Modal */}
-      {showRecordingResult && recordingData && (
-        <div className="absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-          <div className="bg-gray-800 p-6 rounded-xl w-96 max-w-90vw">
-            <h3 className="text-white text-lg font-semibold mb-4 flex items-center">
-              <Circle className="w-5 h-5 mr-2 text-red-500" />
-              Ghi hình hoàn tất
-            </h3>
-
-            <div className="space-y-4">
-              <div className="bg-gray-700 p-4 rounded-lg">
-                <div className="text-white text-sm space-y-2">
-                  <p><span className="text-gray-400">ID:</span> {recordingData.recordingId}</p>
-                  <p><span className="text-gray-400">Thời gian:</span> {Math.round(recordingData.duration)}s</p>
-                  <p><span className="text-gray-400">Kích thước:</span> {(recordingData.fileSize / 1024 / 1024).toFixed(2)} MB</p>
-                  <p><span className="text-gray-400">Trạng thái:</span> 
-                    <span className={`ml-1 px-2 py-1 rounded text-xs ${
-                      recordingData.status === 'UPLOADED' 
-                        ? 'bg-green-600 text-white' 
-                        : 'bg-yellow-600 text-white'
-                    }`}>
-                      {recordingData.status}
-                    </span>
-                  </p>
-                </div>
-              </div>
-
-              {recordingData.url && (
-                <div className="space-y-3">
-                  <button
-                    onClick={() => window.open(recordingData.url, '_blank')}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center justify-center"
-                  >
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    Tải về video
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(recordingData.url);
-                      alert("Đã sao chép link vào clipboard!");
-                    }}
-                    className="w-full bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded-lg transition-colors flex items-center justify-center"
-                  >
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                    Sao chép link
-                  </button>
-                </div>
-              )}
-
-              <div className="bg-yellow-900 bg-opacity-50 p-3 rounded-lg">
-                <p className="text-yellow-200 text-xs">
-                  ⚠️ Link tải về sẽ hết hạn sau 7 ngày. Vui lòng tải về sớm.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex justify-end space-x-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowRecordingResult(false);
-                  setRecordingData(null);
-                }}
-                className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
-              >Đóng
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
       {showScreenshotPreview && screenshotData && (
         <ScreenshotPreview
           screenshotData={screenshotData}
@@ -1552,9 +1519,14 @@ const handleSendImage = async (imageData) => {
       {/* Popup gửi ảnh thành công */}
         {showSendSuccessPopup && (
           <div className="absolute bot-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50">
-            <p className="text-sm font-medium">Gửi ảnh thành công!</p>
+            <p className="text-sm font-medium">Gửi ảnh thành công</p>
           </div>
         )}
+      {showPopup && (
+          <div className="absolute bot-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50">
+            <p className="text-sm font-medium">{message}</p>
+          </div>
+      )}
       {showAgentImagePreview && agentImageData && (
         <ScreenshotPreview
           screenshotData={agentImageData}

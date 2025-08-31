@@ -641,40 +641,89 @@ class OpenViduService {
     /**
    * Recording Function
    */
-  async startRecording(agentId, userId){
-    try{
-      console.log("Start recording with sessionId: ", this.mySessionId)
+  async startAutoRecording(agentId, userId, requestId) {
+    try {
+      console.log("Starting auto recording for session: ", this.mySessionId);
       const response = await axios.post(
-        `${this.APPLICATION_SERVER_URL}/api/openvidu/recording/start/${this.mySessionId}?agentId=${agentId}&userId=${userId}`,
+        `${this.APPLICATION_SERVER_URL}/api/openvidu/recording/start-auto/${this.mySessionId}?agentId=${agentId}&userId=${userId}&requestId=${requestId}`,
         {
           headers: {
             "Content-Type": "application/json",
           },
         }
-      )
+      );
+      
       this.recordingId = response.data.recordingId;
-      console.log("Recording ID:", this.recordingId);
-      console.log("Recording started:", response.data);
-      return 
-    } catch (error){
-      throw error
+      console.log("Auto recording started:", response.data);
+      return response.data;
+    } catch (error) {
+      console.error("Error starting auto recording:", error);
+      throw error;
+    }
+}
+
+  async stopAutoRecording() {
+    try {
+      if (!this.recordingId) {
+        console.warn("No auto recording to stop");
+        return null;
+      }
+
+      console.log("Stopping auto recording: ", this.recordingId);
+      const response = await axios.post(
+        `${this.APPLICATION_SERVER_URL}/api/openvidu/recording/stop-auto/${this.recordingId}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      
+      console.log("Auto recording stopped:", response.data);
+      return response.data;
+    } catch (error) {
+      console.error("Error stopping auto recording:", error);
+      throw error;
     }
   }
-  async stopRecording(){
-    try{
-      console.log("Stop recording with id: ", this.recordingId)
+
+  async startAgentRecording() {
+    try {
+      console.log("Agent starting recording segment for session: ", this.mySessionId);
       const response = await axios.post(
-        `${this.APPLICATION_SERVER_URL}/api/openvidu/recording/stop/${this.recordingId}`,
+        `${this.APPLICATION_SERVER_URL}/api/openvidu/recording/agent/start/${this.mySessionId}`,
         {
           headers: {
             "Content-Type": "application/json",
           },
         }
-      )
-      console.log("Recording stopped:", response.data);
+      );
+      
+      console.log("Agent recording segment started:", response.data);
       return response.data;
-    } catch (error){
-      throw error
+    } catch (error) {
+      console.error("Error starting agent recording:", error);
+      throw error;
+    }
+  }
+
+  async stopAgentRecording(segmentId) {
+    try {
+      console.log("Agent stopping recording segment for session: ", this.mySessionId);
+      const response = await axios.post(
+        `${this.APPLICATION_SERVER_URL}/api/openvidu/recording/agent/stop/${segmentId}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      
+      console.log("Agent recording segment stopped:", response.data);
+      return response.data;
+    } catch (error) {
+      console.error("Error stopping agent recording:", error);
+      throw error;
     }
   }
 }

@@ -5,6 +5,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+import java.util.List;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -17,4 +20,7 @@ public class RecordingDTO {
     private String url;
     private Double duration;
     private Long fileSize;
+    private LocalDateTime startedAt;
+    private LocalDateTime stoppedAt;
+    private List<RecordingSegmentDTO> segments;
 }

@@ -1,8 +1,10 @@
 package com.example.backend.service;
 
 import com.example.backend.dto.response.RecordingDTO;
-import com.example.backend.model.RecordingStatus;
+import com.example.backend.enums.RecordingStatus;
+import com.example.backend.model.RecordingSegment;
 import com.example.backend.repository.RecordingRepository;
+import com.example.backend.repository.RecordingSegmentRepository;
 import io.openvidu.java.client.*;
 import io.openvidu.java.client.RecordingProperties;
 import jakarta.annotation.PostConstruct;
@@ -10,13 +12,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.HashMap;
-import java.util.concurrent.CompletableFuture;
 
 @Service
 public class OpenViduService {
@@ -34,6 +35,9 @@ public class OpenViduService {
 
     @Autowired
     private RecordingRepository recordingRepository;
+
+    @Autowired
+    private RecordingSegmentRepository recordingSegmentRepository;
 
     @PostConstruct
     public void init() {
@@ -150,7 +154,7 @@ public class OpenViduService {
         }
     }
 
-    public RecordingDTO startRecording(String sessionId, Long agentId, Long userId) throws  OpenViduHttpException, OpenViduJavaClientException {
+    public RecordingDTO startAutoRecording(String sessionId, Long agentId, Long userId, Long requestId) throws  OpenViduHttpException, OpenViduJavaClientException {
 
 
         RecordingProperties properties = new RecordingProperties.Builder()
@@ -160,9 +164,16 @@ public class OpenViduService {
                 .hasVideo(true)
                 .build();
         Recording recording = this.openVidu.startRecording(sessionId,properties);
-        com.example.backend.model.Recording dbRecording = recordService.createRecording(recording.getId(), sessionId, agentId,userId);
+        com.example.backend.model.Recording dbRecording = com.example.backend.model.Recording.builder()
+                .recordingId(recording.getId())
+                .sessionId(sessionId)
+                .agentId(agentId)
+                .userId(userId)
+                .requestId(requestId)
+                .status(RecordingStatus.STARTED)
+                .startedAt(LocalDateTime.now())
+                .build();
         recordingRepository.save(dbRecording);
-        recordService.updateRecordingStatus(dbRecording.getRecordingId(), RecordingStatus.STARTED);
         return RecordingDTO.builder()
                 .recordingId(recording.getId())
                 .sessionId(recording.getSessionId())
@@ -171,13 +182,12 @@ public class OpenViduService {
                 .build();
     }
 
-    public RecordingDTO stopRecording(String recordingId) throws OpenViduJavaClientException, OpenViduHttpException{
+    public RecordingDTO stopAutoRecording(String recordingId) throws OpenViduJavaClientException, OpenViduHttpException{
         Recording recording = this.openVidu.stopRecording(recordingId);
 
         com.example.backend.model.Recording dbRecording = recordService.updateRecordingDetails(recordingId,recording);
         recordService.updateRecordingStatus(recordingId,RecordingStatus.STOPPED);
         recordService.uploadToS3(recording);
-//        deleteLocalRecording(recordingId);
 
         return RecordingDTO.builder()
                 .recordingId(recording.getId())
@@ -190,6 +200,48 @@ public class OpenViduService {
                 .build();
 
 
+    }
+
+    public Long startAgentRecording(String sessionId) {
+        // Tìm full session recording
+        com.example.backend.model.Recording fullSessionRecording =
+                recordingRepository.findBySessionId(sessionId)
+                        .orElseThrow(() -> new RuntimeException("Full session recording not found"));
+
+        // Tính offset time từ lúc bắt đầu full recording
+        double offsetSeconds = Duration.between(fullSessionRecording.getStartedAt(), LocalDateTime.now())
+                .toSeconds();
+
+        // Tạo recording segment
+        RecordingSegment segment = RecordingSegment.builder()
+                .recording(fullSessionRecording)
+                .segmentStartTime(LocalDateTime.now())
+                .startOffsetSeconds(offsetSeconds)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        recordingSegmentRepository.save(segment);
+        return segment.getId();
+    }
+
+    public void stopAgentRecording(Long segmentId) {
+        // Tìm segment đang active
+        RecordingSegment activeSegment = recordingSegmentRepository
+                .findById(segmentId)
+                .orElseThrow(() -> new RuntimeException("No active recording segment found"));
+
+        // Tìm full session recording
+        com.example.backend.model.Recording fullSessionRecording = activeSegment.getRecording();
+
+        // Tính offset time kết thúc
+        double endOffsetSeconds = Duration.between(fullSessionRecording.getStartedAt(), LocalDateTime.now())
+                .toSeconds();
+
+        // Update segment
+        activeSegment.setSegmentEndTime(LocalDateTime.now());
+        activeSegment.setEndOffsetSeconds(endOffsetSeconds);
+
+        recordingSegmentRepository.save(activeSegment);
     }
 
 

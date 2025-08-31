@@ -1,11 +1,14 @@
 package com.example.backend.controller;
 
+import com.example.backend.dto.request.RecordingFilterRequest;
 import com.example.backend.dto.response.RecordResponse;
 import com.example.backend.dto.response.RecordUrlResponse;
+import com.example.backend.dto.response.RecordingDTO;
 import com.example.backend.dto.response.S3TreeResponse;
 import com.example.backend.service.RecordService;
 import com.example.backend.service.S3TreeService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -68,5 +71,17 @@ public class RecordController {
             // Trả về URL đơn nếu là file
             return ResponseEntity.ok(recordService.getFilePresignedUrl(key, expire));
         }
+    }
+
+    @GetMapping("/filter")
+    public ResponseEntity<Page<RecordingDTO>> getRecordings(
+            @RequestParam Long agentId,
+            RecordingFilterRequest filterRequest) {
+
+        System.out.println("GET /api/recordings - agentId: {}, startDate: {}, endDate: {}" +
+                agentId + filterRequest.getStartDate() + filterRequest.getEndDate());
+
+        Page<RecordingDTO> recordings = recordService.getRecordingsForAgent(agentId, filterRequest);
+        return ResponseEntity.ok(recordings);
     }
 }
