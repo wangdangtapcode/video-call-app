@@ -351,36 +351,81 @@ class OpenViduService {
   /**
    * Start screen sharing
    */
-  async startScreenShare() {
+  // Trong class OpenViduService
+
+// Thêm phương thức unpublish
+unpublishStream() {
+  if (this.publisher && this.session) {
     try {
-      const videoSource = navigator.mediaDevices.getDisplayMedia
-        ? "screen"
-        : navigator.getDisplayMedia
-        ? "screen"
-        : false;
-
-      if (!videoSource) {
-        throw new Error("Screen sharing not supported");
-      }
-
-      return await this.replaceTrack(videoSource);
+      this.session.unpublish(this.publisher);
+      this.publisher = null; // Xóa tham chiếu publisher cũ
+      console.log("Stream unpublished successfully");
     } catch (error) {
-      console.error("Error starting screen share:", error);
+      console.error("Error unpublishing stream:", error);
       throw error;
     }
+  } else {
+    console.warn("No publisher or session to unpublish");
+  }
+}
+
+// Cập nhật publishStream (thêm kiểm tra trước khi publish)
+async publishStream(videoEnabled = true, audioEnabled = true, videoSource = undefined) { // videoSource có thể là 'screen' hoặc undefined (camera)
+  if (this.publisher) {
+    throw new Error("Already publishing. Unpublish first before publishing new stream.");
   }
 
-  /**
-   * Stop screen sharing and return to camera
-   */
-  async stopScreenShare() {
-    try {
-      return await this.replaceTrack(undefined); // undefined = default camera
-    } catch (error) {
-      console.error("Error stopping screen share:", error);
-      throw error;
-    }
+  try {
+    const properties = {
+      audioSource: audioEnabled ? undefined : false,
+      videoSource: videoEnabled ? videoSource : false,
+      publishAudio: audioEnabled,
+      publishVideo: videoEnabled,
+      resolution: "640x480",
+      frameRate: 30,
+      insertMode: "APPEND",
+      mirror: videoSource !== "screen", // Không mirror cho screen share
+    };
+
+    const ovPublisher = await this.OV.initPublisherAsync(undefined, properties);
+    await this.session.publish(ovPublisher);
+    this.publisher = ovPublisher;
+    console.log("Stream published successfully with source:", videoSource || "camera");
+    return ovPublisher;
+  } catch (error) {
+    console.error("Error publishing stream:", error);
+    throw error;
   }
+}
+
+// Cập nhật startScreenShare và stopScreenShare để sử dụng unpublish + publish mới
+async startScreenShare() {
+  try {
+    // Unpublish camera hiện tại nếu có
+    this.unpublishStream();
+
+    // Publish mới với screen
+    const screenPublisher = await this.publishStream(true, true, "screen"); // Giả sử luôn enable audio/video, bạn có thể điều chỉnh
+    return screenPublisher;
+  } catch (error) {
+    console.error("Error starting screen share:", error);
+    throw error;
+  }
+}
+
+async stopScreenShare() {
+  try {
+    // Unpublish screen hiện tại
+    this.unpublishStream();
+
+    // Publish mới với camera
+    const cameraPublisher = await this.publishStream(true, true, undefined); // undefined = camera default
+    return cameraPublisher;
+  } catch (error) {
+    console.error("Error stopping screen share:", error);
+    throw error;
+  }
+}
 
   /**
    * Leave session and cleanup

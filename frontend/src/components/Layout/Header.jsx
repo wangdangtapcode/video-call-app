@@ -57,10 +57,16 @@ export const Header = () => {
     navigate('/login');
   };
 
+  const handleRecordHistory = () => {
+    setIsDropdownOpen(false);
+    // TODO: Điều hướng đến trang profile
+    navigate('/recordHistory');
+  };
+
   const handleProfile = () => {
     setIsDropdownOpen(false);
     // TODO: Điều hướng đến trang profile
-    navigate('/agent/record');
+    console.log('Navigate to profile');
   };
 
   const handleSettings = () => {
@@ -186,7 +192,7 @@ export const Header = () => {
                   </button>
                   
                   <button
-                    onClick={handleProfile}
+                    onClick={handleRecordHistory}
                     className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-150"
                   >
                     <svg className="w-4 h-4 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

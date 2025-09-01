@@ -680,33 +680,78 @@ export const VideoCallRoom = ({
   };
 
   const toggleScreenShare = async () => {
-    try {
-      if (!isScreenSharing) {
-        await openViduService.current.startScreenShare();
-      } else {
-        await openViduService.current.stopScreenShare();
+  try {
+    if (!isScreenSharing) {
+      // Bắt đầu chia sẻ màn hình
+      const screenPublisher = await openViduService.current.startScreenShare();
+      setIsScreenSharing(true);
+
+      // Gắn luồng screen vào userVideoRef
+      if (userVideoRef.current && screenPublisher) {
+        const videoElement = document.createElement("video");
+        videoElement.autoplay = true;
+        videoElement.playsInline = true;
+        videoElement.muted = true;
+        videoElement.style.width = "100%";
+        videoElement.style.height = "100%";
+        videoElement.style.objectFit = "cover";
+
+        userVideoRef.current.innerHTML = "";
+        userVideoRef.current.appendChild(videoElement);
+        screenPublisher.addVideoElement(videoElement);
       }
 
-      setIsScreenSharing(!isScreenSharing);
-
-      // Send signal to other participants
+      // Gửi signal (như cũ)
       openViduService.current.sendSignal("screen-share", {
         userId,
-        screenSharing: !isScreenSharing,
+        screenSharing: true,
       });
 
-      // Notify via WebSocket
       if (isWebSocketConnected) {
         sendMessage(`/app/call/${requestId}/screen-share`, {
           userId,
-          screenSharing: !isScreenSharing,
+          screenSharing: true,
         });
       }
-    } catch (error) {
-      console.error("Error toggling screen share:", error);
-      alert("Không thể chia sẻ màn hình. Vui lòng thử lại.");
+    } else {
+      // Dừng chia sẻ màn hình
+      const cameraPublisher = await openViduService.current.stopScreenShare();
+      setIsScreenSharing(false);
+
+      // Gắn luồng camera vào userVideoRef
+      if (userVideoRef.current && cameraPublisher) {
+        const videoElement = document.createElement("video");
+        videoElement.autoplay = true;
+        videoElement.playsInline = true;
+        videoElement.muted = true;
+        videoElement.style.width = "100%";
+        videoElement.style.height = "100%";
+        videoElement.style.objectFit = "cover";
+
+        userVideoRef.current.innerHTML = "";
+        userVideoRef.current.appendChild(videoElement);
+        cameraPublisher.addVideoElement(videoElement);
+      }
+
+      // Gửi signal (như cũ)
+      openViduService.current.sendSignal("screen-share", {
+        userId,
+        screenSharing: false,
+      });
+
+      if (isWebSocketConnected) {
+        sendMessage(`/app/call/${requestId}/screen-share`, {
+          userId,
+          screenSharing: false,
+        });
+      }
     }
-  };
+  } catch (error) {
+    console.error("Error toggling screen share:", error);
+    setError(`Lỗi khi chuyển đổi chia sẻ màn hình: ${error.message}`);
+    setCallStatus("error");
+  }
+};
 
   const takeScreenshot = () => {
     if (isAgent) {
@@ -822,7 +867,7 @@ const handleSendImage = async (imageData) => {
   const leaveSession = async () => {
     try {
       if (isAgent){
-        await stopAutoRecording();
+        stopAutoRecording();
       }
       console.log("Leaving OpenVidu session and updating user status...");
       
@@ -1022,14 +1067,6 @@ const handleSendImage = async (imageData) => {
           </div>
 
           <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setShowChat(!showChat)}
-              className="p-2 text-gray-400 hover:text-white transition-colors"
-              title="Chat"
-            >
-              <MessageSquare className="w-5 h-5" />
-            </button>
-
             <div className="flex items-center space-x-1 text-gray-400">
               <Users className="w-4 h-4" />
               <span className="text-sm">{participants.length}</span>
@@ -1383,38 +1420,6 @@ const handleSendImage = async (imageData) => {
                     ))
                   ) : (
                     <p className="text-gray-400 text-sm">Chưa có người tham gia</p>
-                  )}
-                </div>
-              </div>
-              <div>
-                <label className="block text-gray-300 text-sm mb-2">
-                  {isAgent ? "Ảnh đã gửi" : "Ảnh đã nhận"} ({isAgent ? sentImages.length : receivedImages.length})
-                </label>
-                <div className="bg-gray-700 rounded-lg p-3 max-h-48 overflow-y-auto">
-                  {(isAgent ? sentImages : receivedImages).length > 0 ? (
-                    (isAgent ? sentImages : receivedImages).map((image) => (
-                      <div
-                        key={image.id}
-                        className="flex items-center justify-between text-sm text-white mb-2 cursor-pointer hover:bg-gray-600 p-2 rounded"
-                        onClick={() => {
-                          setAgentImageData(image.data);
-                          setShowAgentImagePreview(true);
-                        }}
-                      >
-                        <div className="flex items-center space-x-2">
-                          <img
-                            src={image.data}
-                            alt="Thumbnail"
-                            className="w-12 h-12 object-cover rounded"
-                          />
-                          <span>Ảnh chụp lúc: {image.timestamp}</span>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-gray-400 text-sm">
-                      {isAgent ? "Chưa có ảnh nào được gửi" : "Chưa nhận được ảnh nào"}
-                    </p>
                   )}
                 </div>
               </div>
