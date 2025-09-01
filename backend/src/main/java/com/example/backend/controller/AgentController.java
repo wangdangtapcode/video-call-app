@@ -1,9 +1,6 @@
 package com.example.backend.controller;
 
-import com.example.backend.dto.response.AgentResponse;
-import com.example.backend.dto.response.AgentStaticResponse;
-import com.example.backend.dto.response.TotalResponse;
-import com.example.backend.dto.response.UserResponse;
+import com.example.backend.dto.response.*;
 import com.example.backend.service.UserMetricsService;
 import com.example.backend.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/agent")
@@ -66,6 +64,15 @@ public class AgentController {
         return ResponseEntity.ok(userService.getTopByTotalCallTimes());
     }
 
+    @GetMapping("/rating-stats")
+    public ResponseEntity<Map<String, Long>> getRatingDistribution() {
+        return ResponseEntity.ok(userMetricsService.getRatingDistribution());
+    }
+
+    @GetMapping("/top-efficiency")
+    public ResponseEntity<List<TopEfficiencyAgentsResponse>> getTopEfficiency() {
+        return ResponseEntity.ok(userMetricsService.getTopEfficiencyUsers(5));
+    }
 //    @GetMapping("/all")
 //    public ResponseEntity<List<AgentResponse>> getAllDetailAgent(){
 //        return ResponseEntity.ok(userService.getAllDetailAgent());
