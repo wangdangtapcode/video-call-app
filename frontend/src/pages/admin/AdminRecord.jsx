@@ -1,5 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import axios from "axios";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 
 export default function AdminRecord() {
   const [records, setRecords] = useState([]);
@@ -79,12 +81,35 @@ export default function AdminRecord() {
     return new Date(isoString).toLocaleString("en-GB", { hour12: false });
   };
 
+  // --- Export Excel Function ---
+  const exportExcel = () => {
+  if (!records.length) return;
+
+  const data = records.map(r => ({
+    "Agent ID": r.agentId,
+    "Agent Name": r.agentFullName,
+    "User ID": r.userId,
+    "User Name": r.userFullName,
+    "Session": r.sessionId,
+    "Duration (s)": r.duration,
+    "File URL": r.s3Url || "",
+    "Started At": formatDateTime(r.startedAt),
+    "Stopped At": formatDateTime(r.stoppedAt),
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Records");
+  const wbout = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+  saveAs(new Blob([wbout], { type: "application/octet-stream" }), "records.xlsx");
+};
+
   return (
     <div className="p-6 bg-white rounded-lg shadow-lg">
       <h2 className="text-2xl font-bold mb-6 text-gray-800">Admin Record Management</h2>
 
       {/* Filter Section */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
         <div>
           <input
             type="text"
@@ -141,6 +166,16 @@ export default function AdminRecord() {
           onChange={handleFilterChange}
           className="border rounded px-3 py-2 focus:ring-2 focus:ring-purple-400"
         />
+      </div>
+
+      {/* Export Button */}
+      <div className="mb-4">
+        <button
+          onClick={exportExcel}
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+        >
+          Export Excel
+        </button>
       </div>
 
       {/* Table Section */}

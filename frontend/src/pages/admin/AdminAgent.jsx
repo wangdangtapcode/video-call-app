@@ -6,6 +6,8 @@ import AddUserModal from "../../components/AdminUser/AddUserModel";
 import SearchBar from "../../components/AdminUser/SearchBar";
 import StarRating from "../../components/AdminDashboard/StarRating";
 import { useAdminSubscriptions } from "../../hooks/useAdminSubscriptions";
+import * as XLSX from "xlsx";
+
 
 export default function AdminAgent() {
   const { agents, setAgents } = useAdminSubscriptions();
@@ -21,7 +23,7 @@ export default function AdminAgent() {
 
   // Pagination
   const [page, setPage] = useState(0);
-  const [size] = useState(5);
+  const [size] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
 
   // Top stats
@@ -142,6 +144,26 @@ export default function AdminAgent() {
     return `${h}:${m}:${s}`;
   };
 
+  const exportAgentsExcel = () => {
+    if (!agents || !agents.length) return;
+
+    const data = agents.map(a => ({
+      "Agent ID": a.id,
+      "Agent Name": a.fullName,
+      Email: a.email,
+      Status: a.status,
+      Rating: a.rating,
+      "Total Calls": a.totalCall,
+      "Total Call Time": formatTime(a.totalCallTime)
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Agents");
+    const wbout = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+    saveAs(new Blob([wbout], { type: "application/octet-stream" }), "agents.xlsx");
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -153,6 +175,13 @@ export default function AdminAgent() {
           onChange={setSearchKeyword}
           onOpenModal={() => setIsModalOpen(true)}
         />
+
+        <button
+          onClick={exportAgentsExcel}
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+        >
+          Export Excel
+        </button>
       </div>
 
       {/* Top Stats */}

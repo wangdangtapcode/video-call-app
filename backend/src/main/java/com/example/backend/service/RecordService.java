@@ -3,6 +3,7 @@ package com.example.backend.service;
 import com.example.backend.dto.response.RecordResponse;
 import com.example.backend.dto.response.RecordUrlResponse;
 import com.example.backend.dto.response.RecordingResponse;
+import com.example.backend.dto.response.TimeSeriesPoint;
 import com.example.backend.exception.BusinessException;
 import com.example.backend.mapper.RecordingMapper;
 import com.example.backend.model.Recording;
@@ -59,6 +60,20 @@ public class RecordService {
     private UserRepository userRepository;
 
     private String bucketName = "openvidurecord";
+
+
+    public List<TimeSeriesPoint> getCallStats(String interval,
+                                              LocalDateTime start,
+                                              LocalDateTime end) {
+        List<Object[]> rows = recordingRepository.countByInterval(interval, start, end);
+        return rows.stream()
+                .map(r -> new TimeSeriesPoint(
+                        ((java.sql.Timestamp) r[0]).toLocalDateTime(),
+                        ((Number) r[1]).longValue(),
+                        ((Double) r[2]).doubleValue()
+                ))
+                .toList();
+    }
 
     public Page<RecordingResponse> getRecords(Long agentId,
                                               Long userId,

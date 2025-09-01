@@ -1,9 +1,6 @@
 package com.example.backend.controller;
 
-import com.example.backend.dto.response.RecordResponse;
-import com.example.backend.dto.response.RecordUrlResponse;
-import com.example.backend.dto.response.RecordingResponse;
-import com.example.backend.dto.response.S3TreeResponse;
+import com.example.backend.dto.response.*;
 import com.example.backend.service.RecordService;
 import com.example.backend.service.S3TreeService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +8,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
 
@@ -84,5 +83,14 @@ public class RecordController {
             // Trả về URL đơn nếu là file
             return ResponseEntity.ok(recordService.getFilePresignedUrl(key, expire));
         }
+    }
+
+    @GetMapping("/stats")
+    public List<TimeSeriesPoint> getCallStats(
+            @RequestParam String interval,     // hour | day | month
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end
+    ) {
+        return recordService.getCallStats(interval, start, end);
     }
 }

@@ -11,6 +11,7 @@ import { VideoCall } from "../pages/VideoCall";
 import { PermissionRequest } from "../pages/PermissionRequest";
 import AdminRecord from "../pages/admin/AdminRecord";
 import AdminAgent from "../pages/admin/AdminAgent";
+import AdminStats from "../pages/admin/AdminStats";
 
 
 export const Routers = () => {
@@ -34,6 +35,7 @@ export const Routers = () => {
             <Route path=":folderKey/*" element={<AdminRecord />} />
           </Route>
           <Route path="agent" element={<AdminAgent/>}/>
+          <Route path="stats" element={<AdminStats/>}/>
         </Route>
 
 
