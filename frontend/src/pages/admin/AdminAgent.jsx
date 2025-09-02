@@ -103,7 +103,11 @@ export default function AdminAgent() {
   const handleBlockAgent = async (agentId) => {
     try {
       await axios.put(`${API_BASE_URL}/user/${agentId}/block`);
-      fetchAgents(searchKeyword, page);
+      setAgents((prev) =>
+        prev.map((u) =>
+          u.id === agentId ? { ...u, active: false, status: "OFFLINE" } : u
+        )
+      );
       fetchTopStats();
     } catch (err) {
       console.error(err);
