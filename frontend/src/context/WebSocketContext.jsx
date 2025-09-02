@@ -309,13 +309,6 @@ export const WebSocketProvider = ({ children }) => {
   try {
     const data = JSON.parse(message.body);
 
-    if (data === "FORCE_LOGOUT" || data.type === "FORCE_LOGOUT") {
-      console.warn("🚨 FORCE_LOGOUT received!");
-      localStorage.removeItem("token");
-      sessionStorage.removeItem("userData");
-      window.location.href = "/login";
-    }
-
     const customEvent = new CustomEvent("roleChannelMessage", {
       detail: {
         topic,

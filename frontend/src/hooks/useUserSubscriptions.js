@@ -20,6 +20,8 @@ export const useUserSubscriptions = () => {
   const [users, setUsers] = useState([]);
   const [agents, setAgents] = useState([]);
 
+  const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
+
   const API_BASE_URL = "http://localhost:8081/api";
 
   
@@ -103,10 +105,10 @@ export const useUserSubscriptions = () => {
     console.log("FORCE_LOGOUT event received:", data);
     console.warn("🚨 FORCE_LOGOUT received!");
 
+
+    setIsBlockModalOpen(true);
     handleLogout();
-    if (window.confirm("You have been logged out by admin.\nNhấn OK để thoát.")) {
-      // logout(); // redirect về /login
-    }
+
   });
 
   const handleLogout = async () => {
@@ -180,5 +182,8 @@ export const useUserSubscriptions = () => {
 
     setUsers, 
     setAgents,
+
+    isBlockModalOpen,
+    handleLogout
   };
 };
