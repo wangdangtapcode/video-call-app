@@ -12,6 +12,8 @@ public class AgentResponse {
     private String email;
     private String fullName;
     private String status;
+    private String role;
+    private Boolean active;
     private Double rating;
     private Integer totalCall;
     private Long totalCallTime;

@@ -5,26 +5,36 @@ import { useWebSocket } from "../../context/WebSocketContext";
 import SearchBar from "../../components/AdminUser/SearchBar";
 import AddUserModal from "../../components/AdminUser/AddUserModel";
 import UserTable from "../../components/AdminUser/UserTable";
-// import SearchBar from "../../components/AdminUser/SearchBar";
-// import UserTable from "../../components/AdminUser/UserTable";
-// import AddUserModal from "../../components/AdminUser/AddUserModal";
+import { useAdminSubscriptions } from "../../hooks/useAdminSubscriptions";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 
 export default function AdminUser() {
-  const [users, setUsers] = useState([]);
+  const { users, setUsers } = useAdminSubscriptions();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newUser, setNewUser] = useState({ fullName: "", role: "USER" });
   const [searchKeyword, setSearchKeyword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const { client, connect } = useWebSocket();
+  // pagination states
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [pageSize] = useState(5);
+
+  const { connect } = useWebSocket();
   const API_BASE_URL = "http://localhost:8081/api";
 
-  // Fetch users
-  const fetchUsers = async (keyword = "") => {
+  // Fetch users with pagination
+  const fetchUsers = async (keyword = "", pageNumber = 0) => {
     try {
       setIsLoading(true);
-      const res = await axios.get(`${API_BASE_URL}/user?q=${keyword}&sort=id,asc`);
-      setUsers(res.data);
+      const res = await axios.get(
+        `${API_BASE_URL}/user?q=${keyword}&page=${pageNumber}&size=${pageSize}&sort=id,asc`
+      );
+
+      setUsers(res.data.content);
+      setTotalPages(res.data.totalPages);
+      setPage(res.data.number);
     } catch (err) {
       console.error(err);
     } finally {
@@ -33,8 +43,8 @@ export default function AdminUser() {
   };
 
   useEffect(() => {
-    fetchUsers(searchKeyword);
-  }, [searchKeyword]);
+    fetchUsers(searchKeyword, page);
+  }, [searchKeyword, page]);
 
   // Connect WebSocket on mount
   useEffect(() => {
@@ -44,31 +54,13 @@ export default function AdminUser() {
     }
   }, [connect]);
 
-  // Subscribe to status changes
-  useEffect(() => {
-    if (!client) return;
-    const subscription = client.subscribe("/topic/users/status-changes", (message) => {
-      try {
-        const data = JSON.parse(message.body);
-        setUsers((prev) =>
-          prev.map((u) =>
-            u.id === data.userId ? { ...u, status: data.status} : u
-          )
-        );
-      } catch (err) {
-        console.error("Failed to parse user status message", err);
-      }
-    });
-    return () => subscription.unsubscribe();
-  }, [client]);
-
   // CRUD Handlers
   const handleAddUser = async () => {
     try {
       await axios.post(`${API_BASE_URL}/user`, newUser);
       setIsModalOpen(false);
       setNewUser({ fullName: "", role: "USER" });
-      fetchUsers(searchKeyword);
+      fetchUsers(searchKeyword, page);
     } catch (err) {
       console.error(err);
     }
@@ -77,7 +69,7 @@ export default function AdminUser() {
   const handleDeleteUser = async (userId) => {
     try {
       await axios.delete(`${API_BASE_URL}/user/${userId}`);
-      fetchUsers(searchKeyword);
+      fetchUsers(searchKeyword, page);
     } catch (err) {
       console.error(err);
     }
@@ -86,12 +78,11 @@ export default function AdminUser() {
   const handleBlockUser = async (userId) => {
     try {
       await axios.put(`${API_BASE_URL}/user/${userId}/block`);
-      // fetchUsers(searchKeyword);
       setUsers((prev) =>
-          prev.map((u) =>
-            u.id === userId ? { ...u, active: false, status: "OFFLINE"} : u
-          )
-        );
+        prev.map((u) =>
+          u.id === userId ? { ...u, active: false, status: "OFFLINE" } : u
+        )
+      );
     } catch (err) {
       console.error(err);
     }
@@ -100,26 +91,67 @@ export default function AdminUser() {
   const handleUnBlockUser = async (userId) => {
     try {
       await axios.put(`${API_BASE_URL}/user/${userId}/unblock`);
-      fetchUsers(searchKeyword);
+      fetchUsers(searchKeyword, page);
     } catch (err) {
       console.error(err);
     }
   };
 
+  // Export Excel
+  const exportUsersExcel = () => {
+    if (!users || !users.length) return;
+
+    const data = users.map(u => ({
+      "User ID": u.id,
+      "User Name": u.fullName,
+      Email: u.email || "",
+      Status: u.status || "",
+      Role: u.role || "",
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Users");
+    const wbout = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+    saveAs(new Blob([wbout], { type: "application/octet-stream" }), "users.xlsx");
+  };
+
+  // Helper format time
+  const formatTime = (seconds) => {
+    const h = Math.floor(seconds / 3600).toString().padStart(2, "0");
+    const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, "0");
+    const s = (seconds % 60).toString().padStart(2, "0");
+    return `${h}:${m}:${s}`;
+  };
+
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-semibold text-gray-800">👥 User Management</h1>
-        <SearchBar
-          value={searchKeyword}
-          onChange={setSearchKeyword}
-          onOpenModal={() => setIsModalOpen(true)}
-        />
+        <h1 className="text-2xl font-semibold text-gray-800">
+          👥 User Management
+        </h1>
+        <div className="flex gap-2">
+          <SearchBar
+            value={searchKeyword}
+            onChange={setSearchKeyword}
+            onOpenModal={() => setIsModalOpen(true)}
+          />
+          <button
+            onClick={exportUsersExcel}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            Export Excel
+          </button>
+        </div>
       </div>
 
       <UserTable
         users={users}
         isLoading={isLoading}
+        page={page}
+        totalPages={totalPages}
+        pageSize={pageSize}
+        onPageChange={(newPage) => setPage(newPage)}
         onBlock={handleBlockUser}
         onUnblock={handleUnBlockUser}
         onDelete={handleDeleteUser}

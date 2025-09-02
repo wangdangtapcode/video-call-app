@@ -7,12 +7,8 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class UserResponse {
+public class TopEfficiencyAgentsResponse {
     private Long id;
     private String fullName;
-    private String email;
-    private String status;
-    private String provider;
-    private boolean isActive;
-    private String role;
+    private Double efficiency;
 }

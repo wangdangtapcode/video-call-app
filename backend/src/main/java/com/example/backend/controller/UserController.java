@@ -1,12 +1,14 @@
 package com.example.backend.controller;
 
 import com.example.backend.dto.request.UserRequest;
+import com.example.backend.dto.response.AgentResponse;
 import com.example.backend.dto.response.DeleteResponse;
 import com.example.backend.dto.response.TotalResponse;
 import com.example.backend.dto.response.UserResponse;
 import com.example.backend.enums.UserStatus;
 import com.example.backend.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -38,16 +40,16 @@ public class UserController {
     }
 
     @GetMapping
-    public ResponseEntity<List<UserResponse>> getAllUser(
-            @RequestParam(required = false) String q) { // query parameter tùy chọn
-        List<UserResponse> users;
-        if (q == null || q.isEmpty()) {
-            users = userService.getAllUser(); // trả về tất cả user
-        } else {
-            users = userService.searchUser(q); // tìm kiếm user theo tên
-        }
+    public ResponseEntity<Page<UserResponse>> getAllAgents(
+            @RequestParam(value = "q", required = false) String keyword,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size,
+            @RequestParam(value = "sort", defaultValue = "id,asc") String sort
+    ) {
+        Page<UserResponse> users = userService.getAllUser(keyword, page, size, sort);
         return ResponseEntity.ok(users);
     }
+
     @GetMapping("/{id}")
     public ResponseEntity<UserResponse> getUserById(@PathVariable Long id){
         return ResponseEntity.ok(userService.getUserById(id));

@@ -2,6 +2,7 @@ package com.example.backend.service;
 
 import com.example.backend.enums.UserStatus;
 import com.example.backend.model.SupportRequest;
+import com.example.backend.model.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -108,9 +109,10 @@ public class WebSocketBroadcastService {
         System.out.println("Notified user " + request.getUser().getId() + " that agent rejected the request: ");
     }
 
-    public void broadcastUserStatusChange(Long userId, UserStatus status) {
+    public void broadcastUserStatusChange(User user, UserStatus status) {
         Map<String, Object> message = new HashMap<>();
-        message.put("userId", userId);
+        message.put("userId", user.getId());
+        message.put("fullName", user.getFullName());
         message.put("status", status);
         message.put("timestamp", System.currentTimeMillis());
         message.put("type", "USER_STATUS_CHANGE");
@@ -158,6 +160,10 @@ public class WebSocketBroadcastService {
                 userId.toString(),
                 "/topic/support-updates",
                 notification);
+        messagingTemplate.convertAndSendToUser(
+                "1",
+                "/topic/support-updates",
+                notification);
 
         System.out.println("notification: " + notification);
         System.out.println("Sent WebSocket message to user " + userId + ": " + type);
@@ -176,9 +182,13 @@ public class WebSocketBroadcastService {
     }
 
     public void broadcastBlockUserMessage(Long id) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("type", "FORCE_LOGOUT");
+        data.put("message", "Bạn bị cưỡng chế đăng xuất");
+        data.put("timestamp", System.currentTimeMillis());
         messagingTemplate.convertAndSend(
-                "/topic/"+id+"/queue/force-logout",      // queue dành riêng cho user đó
-                "FORCE_LOGOUT"
+                "/topic/"+id+"/force-logout",      // queue dành riêng cho user đó
+                data
         );
         System.out.println("Block user " + id);
     }

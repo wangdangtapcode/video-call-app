@@ -4,7 +4,7 @@ import { useUser } from "../context/UserContext";
 import axios from "axios";
 
 export const useUserSubscriptions = () => {
-  const { user, isAgent, userMetric, token } = useUser();
+  const { user, isAgent, userMetric, token, logout } = useUser();
 
   // User-specific states
   const [notifications, setNotifications] = useState([]);
@@ -17,13 +17,17 @@ export const useUserSubscriptions = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingAgents, setIsLoadingAgents] = useState(false);
 
+  const [users, setUsers] = useState([]);
+  const [agents, setAgents] = useState([]);
+
   const API_BASE_URL = "http://localhost:8081/api";
+
+  
 
   // Support-related notifications for users
   useRoleChannelListener("request_matched", (data) => {
     console.log("User received support request match:", data);
     setNotifications((prev) => [data, ...prev.slice(0, 49)]);
-
   });
 
   useRoleChannelListener("request_timeout", (data) => {
@@ -32,6 +36,7 @@ export const useUserSubscriptions = () => {
   });
 
   useRoleChannelListener("agent_accepted", (data) => {
+    const {request} = data;
     console.log("Agent accepted support request:", data);
     setNotifications((prev) => [data, ...prev.slice(0, 49)]);
     // setSupportUpdates((prev) => [data, ...prev]);
@@ -43,6 +48,7 @@ export const useUserSubscriptions = () => {
     //     window.location.href = `/call/${requestId}`;
     //   }
     // }, 2000);
+
   });
 
   useRoleChannelListener("agent_rejected", (data) => {
@@ -71,6 +77,7 @@ export const useUserSubscriptions = () => {
       const { userId, status, timestamp, fullName, email } = data;
       console.log("User status change received:", {
         userId,
+        fullName,
         status,
         timestamp,
       });
@@ -83,11 +90,22 @@ export const useUserSubscriptions = () => {
         console.log(
           "User status changed, reloading online agents list after a short delay..."
         );
+
         loadOnlineAgents();
       }, 500);
     } catch (error) {
       console.error("Error handling user status change:", error);
     }
+  });
+
+  useRoleChannelListener("FORCE_LOGOUT", (data) => {
+
+    console.log("FORCE_LOGOUT event received:", data);
+    console.warn("🚨 FORCE_LOGOUT received!");
+
+    alert("You have been logged out by admin.");
+    // Thoát session
+    logout();
   });
 
   // Agent presence functions (moved from useAgentPresence)
@@ -121,6 +139,8 @@ export const useUserSubscriptions = () => {
   //   }
   // }, [user, isAgent, userMetric]);
 
+  
+
   return {
     // User subscription data
     notifications,
@@ -136,5 +156,11 @@ export const useUserSubscriptions = () => {
 
     // Agent presence functions
     loadOnlineAgents,
+
+    users,
+    agents,
+
+    setUsers, 
+    setAgents,
   };
 };

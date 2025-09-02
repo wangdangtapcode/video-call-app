@@ -42,9 +42,9 @@ export const WebSocketProvider = ({ children }) => {
 
     switch (role) {
       case "USER":
-        return [...baseChannels, "/topic/users/status-changes", `/topic/${userId}/queue/force-logout`];
+        return [...baseChannels, "/topic/users/status-changes", `/topic/${userId}/force-logout`];
       case "AGENT":
-        return [...baseChannels];
+        return [...baseChannels, `/topic/${userId}/force-logout`];
       case "ADMIN":
         return [...baseChannels, "/topic/users/status-changes"];
       default:

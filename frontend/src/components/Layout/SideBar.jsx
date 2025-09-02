@@ -6,6 +6,7 @@ const menu = [
   { label: "Users", link: "/admin/user/", icon: "👥" },
   { label: "Agents", link: "/admin/agent/", icon: "🎧" },
   { label: "Records", link: "/admin/record/", icon: "📁" },
+  { label: "Statistics", link: "/admin/stats/", icon: "📈" },
 ];
 
 export default function Sidebar({logout}) {

@@ -15,6 +15,7 @@
     "@tailwindcss/vite": "^4.1.11",
     "axios": "^1.7.7",
     "chart.js": "^4.5.0",
+    "date-fns-tz": "^3.2.0",
     "file-saver": "^2.0.5",
     "framer-motion": "^12.23.12",
     "jszip": "^3.10.1",
@@ -25,7 +26,8 @@
     "react-dom": "^19.1.1",
     "react-router-dom": "^6.30.0",
     "sockjs-client": "^1.6.1",
-    "tailwindcss": "^4.1.11"
+    "tailwindcss": "^4.1.11",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@esbuild-plugins/node-globals-polyfill": "^0.2.3",

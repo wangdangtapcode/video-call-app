@@ -29,6 +29,8 @@ public interface UserMapper {
     @Mapping(source = "user.fullName", target = "fullName")
     @Mapping(source = "user.email", target = "email")
     @Mapping(source = "user.status", target = "status")
+    @Mapping(source = "user.role", target = "role")
+    @Mapping(source = "user.active", target = "active")
     @Mapping(source = "rating", target = "rating")
     @Mapping(source = "totalCalls", target = "totalCall")
     @Mapping(source = "totalCallTime", target = "totalCallTime")

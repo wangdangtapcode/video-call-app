@@ -2,11 +2,19 @@ package com.example.backend.service;
 
 import com.example.backend.dto.response.RecordResponse;
 import com.example.backend.dto.response.RecordUrlResponse;
+import com.example.backend.dto.response.RecordingResponse;
+import com.example.backend.dto.response.TimeSeriesPoint;
+import com.example.backend.exception.BusinessException;
+import com.example.backend.mapper.RecordingMapper;
 import com.example.backend.model.Recording;
 import com.example.backend.model.RecordingStatus;
+import com.example.backend.model.User;
 import com.example.backend.repository.RecordingRepository;
+import com.example.backend.repository.UserRepository;
 import io.openvidu.java.client.OpenVidu;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.core.sync.ResponseTransformer;
@@ -26,12 +34,11 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.Base64;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 public class RecordService {
@@ -46,46 +53,73 @@ public class RecordService {
     @Autowired
     private RecordingRepository recordingRepository;
 
+    @Autowired
+    private RecordingMapper recordingMapper;
+
+    @Autowired
+    private UserRepository userRepository;
+
     private String bucketName = "openvidurecord";
 
-    public List<RecordResponse> listVideos(String startDate, String endDate) {
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
-        LocalDate tmpStart = null;
-        LocalDate tmpEnd = null;
-
-        if (startDate != null && !startDate.isBlank()) {
-            tmpStart = LocalDate.parse(startDate, formatter);
-        }
-        if (endDate != null && !endDate.isBlank()) {
-            tmpEnd = LocalDate.parse(endDate, formatter);
-        }
-
-        final LocalDate start = tmpStart;
-        final LocalDate end = tmpEnd;
-
-        ListObjectsV2Request listReq = ListObjectsV2Request.builder()
-                .bucket(bucketName)
-                .build();
-        ListObjectsV2Response listRes = s3Client.listObjectsV2(listReq);
-
-        return listRes.contents().stream()
-                .filter(obj -> {
-                    LocalDate modifiedDate = obj.lastModified()
-                            .atZone(ZoneId.systemDefault())
-                            .toLocalDate();
-
-                    boolean afterStart = (start == null || !modifiedDate.isBefore(start));
-                    boolean beforeEnd = (end == null || !modifiedDate.isAfter(end));
-
-                    return afterStart && beforeEnd;
-                })
-                .map(obj -> new RecordResponse(
-                        obj.key(),
-                        Paths.get(obj.key()).getFileName().toString(),
-                        obj.lastModified()
+    public List<TimeSeriesPoint> getCallStats(String interval,
+                                              LocalDateTime start,
+                                              LocalDateTime end) {
+        List<Object[]> rows = recordingRepository.countByInterval(interval, start, end);
+        return rows.stream()
+                .map(r -> new TimeSeriesPoint(
+                        ((java.sql.Timestamp) r[0]).toLocalDateTime(),
+                        ((Number) r[1]).longValue(),
+                        ((Double) r[2]).doubleValue()
                 ))
                 .toList();
+    }
+
+    public Page<RecordingResponse> getRecords(Long agentId,
+                                              Long userId,
+                                              String startDate,
+                                              String endDate,
+                                              Pageable pageable) {
+
+        // 1. Parse date
+        LocalDateTime start = null;
+        LocalDateTime end = null;
+
+        if (startDate != null && !startDate.isEmpty()) {
+            // parse yyyy-MM-dd -> LocalDate -> LocalDateTime 00:00:00
+            start = LocalDate.parse(startDate).atStartOfDay();
+        }
+        if (endDate != null && !endDate.isEmpty()) {
+            // parse yyyy-MM-dd -> LocalDate -> LocalDateTime 23:59:59
+            end = LocalDate.parse(endDate).atTime(23, 59, 59);
+        }
+
+        // 2. Lấy tất cả recordings với filter (nếu dùng Specification hoặc method name)
+        Page<Recording> recordings = recordingRepository.findByFilters(agentId, userId, start, end, pageable);
+
+        // 3. Lấy tất cả userId + agentId trong page, fetch 1 lần
+        Set<Long> userIds = recordings.stream()
+                .flatMap(r -> Stream.of(r.getUserId(), r.getAgentId()))
+                .collect(Collectors.toSet());
+
+        Map<Long, User> usersMap = userRepository.findAllById(userIds)
+                .stream()
+                .collect(Collectors.toMap(User::getId, Function.identity()));
+
+        // 4. Map Recording -> RecordingResponse
+        return recordings.map(recording -> {
+            User user = usersMap.get(recording.getUserId());
+            User agent = usersMap.get(recording.getAgentId());
+
+            if (user == null) throw BusinessException.userNotFound(recording.getUserId());
+            if (agent == null) throw BusinessException.userNotFound(recording.getAgentId());
+
+            RecordingResponse recordingResponse = recordingMapper.toResponse(recording);
+            recordingResponse.setUserFullName(user.getFullName());
+            recordingResponse.setAgentFullName(agent.getFullName());
+
+            return recordingResponse;
+        });
     }
 
 
