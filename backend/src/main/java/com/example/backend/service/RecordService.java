@@ -38,6 +38,7 @@ import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.function.Function;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -60,21 +61,24 @@ public class RecordService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private UserMetricsService userMetricsService;
+
     private String bucketName = "openvidurecord";
 
 
-//    public List<TimeSeriesPoint> getCallStats(String interval,
-//                                              LocalDateTime start,
-//                                              LocalDateTime end) {
-//        List<Object[]> rows = recordingRepository.countByInterval(interval, start, end);
-//        return rows.stream()
-//                .map(r -> new TimeSeriesPoint(
-//                        ((java.sql.Timestamp) r[0]).toLocalDateTime(),
-//                        ((Number) r[1]).longValue(),
-//                        ((Double) r[2]).doubleValue()
-//                ))
-//                .toList();
-//    }
+    public List<TimeSeriesPoint> getCallStats(String interval,
+                                              LocalDateTime start,
+                                              LocalDateTime end) {
+        List<Object[]> rows = recordingRepository.countByInterval(interval, start, end);
+        return rows.stream()
+                .map(r -> new TimeSeriesPoint(
+                        ((java.sql.Timestamp) r[0]).toLocalDateTime(),
+                        ((Number) r[1]).longValue(),
+                        ((Double) r[2]).doubleValue()
+                ))
+                .toList();
+    }
 
     public Page<RecordingResponse> getRecords(Long agentId,
                                               Long userId,
@@ -123,7 +127,6 @@ public class RecordService {
         });
     }
 
-
     public RecordUrlResponse getPresignedUrl(String key) {
 
         GetObjectRequest getObjectRequest = GetObjectRequest.builder()
@@ -151,9 +154,9 @@ public class RecordService {
         return recordingRepository.save(recording);
     }
 
-    public Recording updateRecordingDetails(String recordingId, io.openvidu.java.client.Recording openViduRecording){
+    public Recording updateRecordingDetails(String recordingId, io.openvidu.java.client.Recording openViduRecording) {
         Optional<Recording> recordingOpt = recordingRepository.findByRecordingId(recordingId);
-        if (recordingOpt.isPresent()){
+        if (recordingOpt.isPresent()) {
             Recording recording = recordingOpt.get();
             recording.setDuration(openViduRecording.getDuration());
             recording.setFileSize(openViduRecording.getSize());
@@ -163,17 +166,22 @@ public class RecordService {
         throw new RuntimeException("Recording not found " + recordingId);
     }
 
-    public Recording updateRecordingStatus(String recordingId, RecordingStatus status){
+    public Recording updateRecordingStatus(String recordingId, RecordingStatus status) {
         Optional<Recording> recordingOpt = recordingRepository.findByRecordingId(recordingId);
-        if(recordingOpt.isPresent()){
+        if (recordingOpt.isPresent()) {
             Recording recording = recordingOpt.get();
             recording.setStatus(status);
-            switch (status){
+            switch (status) {
                 case STARTED:
                     recording.setStartedAt(LocalDateTime.now());
                     break;
                 case STOPPED:
                     recording.setStoppedAt(LocalDateTime.now());
+                    break;
+                case INIT:
+                case UPLOADED:
+                case FAILED:
+                    // No specific time update for these statuses
                     break;
             }
             return recordingRepository.save(recording);
@@ -182,9 +190,9 @@ public class RecordService {
 
     }
 
-    public void updateRecordingS3Info(String recordingId, String s3Key, String s3Url){
+    public void updateRecordingS3Info(String recordingId, String s3Key, String s3Url) {
         Optional<Recording> recordingOpt = recordingRepository.findByRecordingId(recordingId);
-        if(recordingOpt.isPresent()){
+        if (recordingOpt.isPresent()) {
             Recording recording = recordingOpt.get();
             recording.setS3Key(s3Key);
             recording.setS3Url(s3Url);
@@ -192,7 +200,7 @@ public class RecordService {
         }
     }
 
-    public void uploadToS3(io.openvidu.java.client.Recording openViduRecording){
+    public void uploadToS3(io.openvidu.java.client.Recording openViduRecording) {
         try {
             String recordingUrl = openViduRecording.getUrl();
 
@@ -209,7 +217,7 @@ public class RecordService {
             connection.setConnectTimeout(30000);
             connection.setReadTimeout(30000);
 
-            try(InputStream inputStream = connection.getInputStream()){
+            try (InputStream inputStream = connection.getInputStream()) {
                 String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd--HHmmss"));
                 String s3Key = String.format("recording/%s/%s/%s-%s.mp4",
                         openViduRecording.getSessionId(),
@@ -232,8 +240,7 @@ public class RecordService {
                                 "session-id", openViduRecording.getSessionId(),
                                 "recording-id", openViduRecording.getId(),
                                 "duration", String.valueOf(openViduRecording.getDuration()),
-                                "size", String.valueOf(openViduRecording.getSize())
-                        ))
+                                "size", String.valueOf(openViduRecording.getSize())))
                         .build();
 
                 // Upload với content length chính xác
@@ -249,7 +256,7 @@ public class RecordService {
                 connection.disconnect();
             }
 
-        } catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
             System.out.println("Failed to upload recording to S3: " + e.getMessage());
             updateRecordingStatus(openViduRecording.getId(), RecordingStatus.FAILED);
@@ -257,10 +264,6 @@ public class RecordService {
         }
         return;
     }
-
-
-
-
 
     public void deleteFile(String key) {
         s3Client.deleteObject(DeleteObjectRequest.builder()
@@ -283,7 +286,8 @@ public class RecordService {
             DeleteObjectsRequest deleteRequest = DeleteObjectsRequest.builder()
                     .bucket(bucketName)
                     .delete(Delete.builder()
-                            .objects(objects.stream().map(o -> ObjectIdentifier.builder().key(o.key()).build()).toList())
+                            .objects(
+                                    objects.stream().map(o -> ObjectIdentifier.builder().key(o.key()).build()).toList())
                             .build())
                     .build();
             s3Client.deleteObjects(deleteRequest);
@@ -397,4 +401,20 @@ public class RecordService {
                 .build();
     }
 
+    public void rating(String key, String rating, String feedback) {
+        Optional<Recording> recordings = recordingRepository.findBySessionId(key);
+        if (recordings.isPresent()) {
+            Recording recording = recordings.get();
+            recording.setRating(Integer.parseInt(rating));
+            recording.setFeedback(feedback);
+            recordingRepository.save(recording);
+            boolean isSuccessful = rating != null && Integer.parseInt(rating) < 3 ? false : true;
+            userMetricsService.updateCallCompleted(recording.getAgentId(), recording.getDuration(), isSuccessful);
+            if (recording.getAgentId() != null) {
+                userMetricsService.updateRating(recording.getAgentId(), Integer.parseInt(rating));
+            }
+            return; // Thêm return để tránh throw exception
+        }
+        throw new RuntimeException("Recording not found: " + key);
+    }
 }

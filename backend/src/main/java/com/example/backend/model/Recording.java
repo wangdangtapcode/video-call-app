@@ -44,6 +44,12 @@ public class Recording {
     @Column(name = "duration")
     private Double duration;
 
+    @Column(name = "rating")
+    private Integer rating;
+
+    @Column(name = "feedback")
+    private String feedback;
+
     @Column(name = "file_size")
     private Long fileSize;
 

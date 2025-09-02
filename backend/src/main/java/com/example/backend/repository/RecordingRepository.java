@@ -40,4 +40,20 @@ public interface RecordingRepository extends JpaRepository<Recording,Long> {
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end,
             Pageable pageable);
+
+    @Query(value = """
+        SELECT 
+            DATE_TRUNC(:interval, r.started_at) AS bucket, 
+            COUNT(*) AS cnt,
+            SUM(r.duration) as sum
+        FROM recordings r
+        WHERE r.started_at BETWEEN :start AND :end
+        GROUP BY bucket
+        ORDER BY bucket
+        """, nativeQuery = true)
+    List<Object[]> countByInterval(
+            @Param("interval") String interval, // 'hour' | 'day' | 'month'
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
 }

@@ -683,7 +683,7 @@ async stopScreenShare() {
     }
   }
 
-    /**
+  /**
    * Recording Function
    */
   async startAutoRecording(agentId, userId, requestId) {

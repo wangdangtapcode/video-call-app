@@ -58,6 +58,7 @@ public class WebSocketBroadcastService {
                 request);
 
         System.out.println("Notified user " + request.getUser().getId() + " about timeout: " + reason);
+
     }
 
     /**

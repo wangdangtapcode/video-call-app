@@ -39,6 +39,9 @@ public class OpenViduService {
     @Autowired
     private RecordingSegmentRepository recordingSegmentRepository;
 
+    @Autowired
+    private UserMetricsService userMetricsService;
+
     @PostConstruct
     public void init() {
         this.openVidu = new OpenVidu(OPENVIDU_URL, OPENVIDU_SECRET);
@@ -127,7 +130,7 @@ public class OpenViduService {
                 propertiesBuilder.data(data);
             }
 
-//            ConnectionProperties connectionProperties = propertiesBuilder.build();
+            // ConnectionProperties connectionProperties = propertiesBuilder.build();
             ConnectionProperties connectionProperties = ConnectionProperties.fromJson(params).build();
             Connection connection = session.createConnection(connectionProperties);
 
@@ -185,8 +188,8 @@ public class OpenViduService {
     public RecordingDTO stopAutoRecording(String recordingId) throws OpenViduJavaClientException, OpenViduHttpException{
         Recording recording = this.openVidu.stopRecording(recordingId);
 
-        com.example.backend.model.Recording dbRecording = recordService.updateRecordingDetails(recordingId,recording);
-        recordService.updateRecordingStatus(recordingId,RecordingStatus.STOPPED);
+        com.example.backend.model.Recording dbRecording = recordService.updateRecordingDetails(recordingId, recording);
+        recordService.updateRecordingStatus(recordingId, RecordingStatus.STOPPED);
         recordService.uploadToS3(recording);
 
         return RecordingDTO.builder()
@@ -198,7 +201,6 @@ public class OpenViduService {
                 .fileSize(recording.getSize())
                 .databaseId(dbRecording.getId())
                 .build();
-
 
     }
 
@@ -248,9 +250,9 @@ public class OpenViduService {
     public void deleteLocalRecording(String recordingId){
         try{
             openVidu.deleteRecording(recordingId);
-        } catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
-            System.out.println("Error in deleting local record: " +  e.getMessage());
+            System.out.println("Error in deleting local record: " + e.getMessage());
         }
         return;
     }

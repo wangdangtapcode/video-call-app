@@ -6,10 +6,10 @@ import com.example.backend.enums.UserStatus;
 import com.example.backend.enums.SupportRequestStatus;
 import com.example.backend.model.SupportRequest;
 import com.example.backend.model.User;
-import com.example.backend.model.UserMetric;
+
 import com.example.backend.repository.SupportRequestRepository;
 import com.example.backend.repository.UserRepository;
-import com.example.backend.repository.UserMetricRepository;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.TaskScheduler;
@@ -37,9 +37,6 @@ public class SupportRequestService {
     private UserRepository userRepository;
 
     @Autowired
-    private UserMetricRepository userMetricRepository;
-
-    @Autowired
     private WebSocketBroadcastService webSocketBroadcastService;
 
     @Autowired
@@ -47,6 +44,9 @@ public class SupportRequestService {
 
     @Autowired
     private TaskScheduler taskScheduler;
+
+    @Autowired
+    private UserMetricsService userMetricsService;
 
     private final Map<Long, ScheduledFuture<?>> timeoutTasks = new ConcurrentHashMap<>();
 
@@ -172,8 +172,7 @@ public class SupportRequestService {
                 // Gửi progress update
                 webSocketBroadcastService.notifyUserMatchingProgress(
                         request,
-                        "Đang tìm agent... (Lần thử " + attempt + "/3)"
-                );
+                        "Đang tìm agent... (Lần thử " + attempt + "/3)");
 
                 User bestAgent = findBestAvailableAgent();
 
@@ -211,8 +210,8 @@ public class SupportRequestService {
         supportRequestRepository.save(request);
 
         // Notify user và agent qua WebSocket
-        if(!request.isChooseAgent()){
-        webSocketBroadcastService.notifyUserMatched(request);
+        if (!request.isChooseAgent()) {
+            webSocketBroadcastService.notifyUserMatched(request);
         }
         webSocketBroadcastService.notifyAgentNewRequest(request);
 
@@ -230,6 +229,7 @@ public class SupportRequestService {
 
         System.out.println("Request " + request.getId() + " timed out: " + reason);
     }
+
     private void handleRequestTimeout(Long requestId) {
         Optional<SupportRequest> requestOpt = supportRequestRepository.findById(requestId);
         if (requestOpt.isEmpty() || !requestOpt.get().isWaiting()) {
@@ -239,6 +239,7 @@ public class SupportRequestService {
         SupportRequest request = requestOpt.get();
         handleMatchingTimeout(request, "Yêu cầu chưa được phản hồi trong thời gian quy định");
     }
+
     /**
      * Tìm agent tốt nhất cho quick support
      */
@@ -326,6 +327,8 @@ public class SupportRequestService {
             // Notify user that agent accepted
             webSocketBroadcastService.notifyAgentAccepted(request);
 
+            userMetricsService.updateCallStarted(agentId, request.getCreatedAt(),
+                    request.getCompletedAt());
 
         } else {
             // Agent từ chối
@@ -335,6 +338,10 @@ public class SupportRequestService {
 
             // Notify user that agent rejected
             webSocketBroadcastService.notifyAgentRejected(request);
+
+            userMetricsService.updateCallRejected(agentId,
+                    request.getCreatedAt(),
+                    request.getCompletedAt());
 
             // // Broadcast to user
             // webSocketBroadcastService.broadcastSupportUpdate(
@@ -354,9 +361,11 @@ public class SupportRequestService {
 
         return supportRequestRepository.save(request);
     }
+
     private long getOnlineAgentsCount() {
         return userRepository.countByRoleAndStatus("AGENT", UserStatus.ONLINE);
     }
+
     // Helper methods để hỗ trợ frontend timer
     public int getEstimatedWaitTime(String type, Long agentId) {
         if ("choose_agent".equals(type)) {
@@ -378,6 +387,7 @@ public class SupportRequestService {
             }
         }
     }
+
     public boolean cancelSupportRequest(Long requestId, Long userId) {
         Optional<SupportRequest> requestOpt = supportRequestRepository.findById(requestId);
 

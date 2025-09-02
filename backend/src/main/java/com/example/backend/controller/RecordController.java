@@ -21,6 +21,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/record")
@@ -73,8 +74,7 @@ public class RecordController {
     @GetMapping("/download")
     public ResponseEntity<?> getPresignedUrl(
             @RequestParam String key,
-            @RequestParam(required = false) Boolean folder
-    ) {
+            @RequestParam(required = false) Boolean folder) {
         Duration expire = Duration.ofMinutes(10);
 
         if (Boolean.TRUE.equals(folder)) {
@@ -105,5 +105,14 @@ public class RecordController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end
     ) {
         return recordService.getCallStats(interval, start, end);
+    }
+
+    @PostMapping("/rating")
+    public ResponseEntity<?> rating(@RequestBody Map<String, String> requestBody) {
+        String key = requestBody.get("key");
+        String rating = requestBody.get("rating");
+        String feedback = requestBody.get("feedback");
+        recordService.rating(key, rating, feedback);
+        return ResponseEntity.ok().body("Rating successfully");
     }
 }
