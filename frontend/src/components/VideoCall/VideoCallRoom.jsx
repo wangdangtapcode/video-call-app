@@ -171,7 +171,7 @@ export const VideoCallRoom = ({
         await initializeSession();
         if (mounted) {
           startCallDuration();
-          await startAutoRecording();
+          if(isAgent) await startAutoRecording();
         }
       } catch (error) {
         if (mounted) {
@@ -271,6 +271,7 @@ export const VideoCallRoom = ({
 
       // Initialize OpenVidu session
       const sessionId = `session-${requestId}`;
+      setSessionId(sessionId);
       const ovSession = await openViduService.current.initSession(
         sessionId,
         userName,
@@ -870,7 +871,7 @@ export const VideoCallRoom = ({
         });
         
         console.log("Agent recording segment started");
-        setSessionId(sessionId);
+        
       } catch (error) {
         console.error("Error starting agent recording segment:", error);
         alert("Không thể bắt đầu ghi hình. Vui lòng thử lại.");
@@ -1638,6 +1639,7 @@ export const VideoCallRoom = ({
                 if(isAgent) {
                   onCallEnd()
                 } else {
+                  console.log("Calling onCallEnd with rating and feedback" + selectedRating + " - " + feedbackText + " for session " + sessionId);
                   onCallEnd(sessionId, selectedRating, feedbackText)
                 }
               }}

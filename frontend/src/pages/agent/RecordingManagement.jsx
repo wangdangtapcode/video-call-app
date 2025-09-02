@@ -1,32 +1,39 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import VideoPlayer from '../../components/Record/VideoPlayer';
-import { useUser } from '../../context/UserContext';
-import { Calendar, Clock, Play, X, Video, Search } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import VideoPlayer from "../../components/Record/VideoPlayer";
+import { useUser } from "../../context/UserContext";
+import { Calendar, Clock, Play, X, Video, Search } from "lucide-react";
 
 const RecordingManagement = () => {
   const [recordings, setRecordings] = useState([]);
   const [selectedSegment, setSelectedSegment] = useState(null);
-  const [startDate, setStartDate] = useState('2025-08-31');
-  const [endDate, setEndDate] = useState('2025-08-31');
-  const [filterMode, setFilterMode] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(null);
+  const [filterMode, setFilterMode] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const { user } = useUser();
 
   useEffect(() => {
-    if (filterMode === 'date-range' || (filterMode === 'all' && recordings.length === 0)) {
+    if (
+      filterMode === "date-range" ||
+      (filterMode === "all" && recordings.length === 0)
+    ) {
       const fetchRecordings = async () => {
         try {
-          const response = await axios.get('http://localhost:8081/api/record/filter', {
-            params: {
-              agentId: user.id,
-              startDate,
-              endDate,
-            },
-          });
+          const response = await axios.get(
+            "http://localhost:8081/api/record/filter",
+            {
+              params: {
+                agentId: user.id,
+                startDate,
+                endDate,
+              },
+            }
+          );
+          console.log("Fetched recordings:", response.data);
           setRecordings(response.data.content);
         } catch (error) {
-          console.error('Error fetching recordings:', error);
+          console.error("Error fetching recordings:", error);
         }
       };
 
@@ -53,18 +60,22 @@ const RecordingManagement = () => {
       }
     }
 
-    if (filterMode === 'date-range') {
-      const segmentDate = new Date(segment.segmentStartTime).toISOString().split('T')[0];
+    if (filterMode === "date-range") {
+      const segmentDate = new Date(segment.segmentStartTime)
+        .toISOString()
+        .split("T")[0];
       return segmentDate >= startDate && segmentDate <= endDate;
     }
-    
+
     return true;
   });
 
   const formatDuration = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')} mins`;
+    return `${mins.toString().padStart(2, "0")}:${secs
+      .toString()
+      .padStart(2, "0")} mins`;
   };
 
   const handlePlay = (segment) => {
@@ -72,9 +83,10 @@ const RecordingManagement = () => {
       url: segment.recordingUrl,
       startTime: segment.startOffsetSeconds,
       endTime: segment.endOffsetSeconds,
-      title: segment.totalSegments > 1
-        ? `Record cuộc gọi ${segment.recordingId} - bản ghi thứ ${segment.segmentNumber}`
-        : `Record cuộc gọi ${segment.recordingId}`,
+      title:
+        segment.totalSegments > 1
+          ? `Record cuộc gọi ${segment.recordingId} - bản ghi thứ ${segment.segmentNumber}`
+          : `Record cuộc gọi ${segment.recordingId}`,
     });
   };
 
@@ -119,7 +131,7 @@ const RecordingManagement = () => {
                       type="radio"
                       name="filterMode"
                       value="all"
-                      checked={filterMode === 'all'}
+                      checked={filterMode === "all"}
                       onChange={(e) => setFilterMode(e.target.value)}
                       className="text-indigo-600"
                     />
@@ -130,7 +142,7 @@ const RecordingManagement = () => {
                       type="radio"
                       name="filterMode"
                       value="date-range"
-                      checked={filterMode === 'date-range'}
+                      checked={filterMode === "date-range"}
                       onChange={(e) => setFilterMode(e.target.value)}
                       className="text-indigo-600"
                     />
@@ -139,11 +151,13 @@ const RecordingManagement = () => {
                 </div>
               </div>
             </div>
-            
-            {filterMode === 'date-range' && (
+
+            {filterMode === "date-range" && (
               <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-gray-200">
                 <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium text-gray-600">Từ ngày:</label>
+                  <label className="text-sm font-medium text-gray-600">
+                    Từ ngày:
+                  </label>
                   <input
                     type="date"
                     value={startDate}
@@ -152,7 +166,9 @@ const RecordingManagement = () => {
                   />
                 </div>
                 <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium text-gray-600">Đến ngày:</label>
+                  <label className="text-sm font-medium text-gray-600">
+                    Đến ngày:
+                  </label>
                   <input
                     type="date"
                     value={endDate}
@@ -168,18 +184,23 @@ const RecordingManagement = () => {
         {/* Results Summary */}
         <div className="mb-6">
           <p className="text-gray-600">
-            Hiển thị <span className="font-semibold text-indigo-600">{filteredSegments.length}</span> video
-            {filterMode === 'date-range' && ` từ ${startDate} đến ${endDate}`}
+            Hiển thị{" "}
+            <span className="font-semibold text-indigo-600">
+              {filteredSegments.length}
+            </span>{" "}
+            video
+            {filterMode === "date-range" && ` từ ${startDate} đến ${endDate}`}
           </p>
         </div>
 
         {/* Video Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredSegments.map((segment) => {
-            const title = segment.totalSegments > 1
-              ? `Record cuộc gọi ${segment.recordingId} - bản ghi thứ ${segment.segmentNumber}`
-              : `Record cuộc gọi ${segment.recordingId}`;
-            
+            const title =
+              segment.totalSegments > 1
+                ? `Record cuộc gọi ${segment.recordingId} - bản ghi thứ ${segment.segmentNumber}`
+                : `Record cuộc gọi ${segment.recordingId}`;
+
             return (
               <div
                 key={`${segment.recordingId}-${segment.id}`}
@@ -196,7 +217,10 @@ const RecordingManagement = () => {
                   </video>
                   <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
                     <div className="bg-white bg-opacity-90 rounded-full p-4">
-                      <Play className="h-8 w-8 text-indigo-600 ml-1" fill="currentColor" />
+                      <Play
+                        className="h-8 w-8 text-indigo-600 ml-1"
+                        fill="currentColor"
+                      />
                     </div>
                   </div>
                   <div className="absolute top-2 right-2 bg-black bg-opacity-70 text-white px-2 py-1 rounded-md text-xs flex items-center gap-1">
@@ -204,14 +228,20 @@ const RecordingManagement = () => {
                     {formatDuration(segment.duration)}
                   </div>
                 </div>
-                
+
                 <div className="p-4">
                   <h3 className="font-semibold text-gray-900 text-sm mb-2 line-clamp-2">
                     {title}
                   </h3>
                   <p className="text-xs text-gray-500 flex items-center gap-1">
                     <Calendar className="h-3 w-3" />
-                    {new Date(segment.segmentStartTime).toLocaleDateString('vi-VN')} - {new Date(segment.segmentStartTime).toLocaleTimeString('vi-VN')}
+                    {new Date(segment.segmentStartTime).toLocaleDateString(
+                      "vi-VN"
+                    )}{" "}
+                    -{" "}
+                    {new Date(segment.segmentStartTime).toLocaleTimeString(
+                      "vi-VN"
+                    )}
                   </p>
                 </div>
               </div>
@@ -223,9 +253,13 @@ const RecordingManagement = () => {
         {filteredSegments.length === 0 && (
           <div className="text-center py-12">
             <Video className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Không tìm thấy video nào</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              Không tìm thấy video nào
+            </h3>
             <p className="text-gray-500">
-              {searchQuery ? 'Thử thay đổi từ khóa tìm kiếm' : 'Thử thay đổi bộ lọc thời gian'}
+              {searchQuery
+                ? "Thử thay đổi từ khóa tìm kiếm"
+                : "Thử thay đổi bộ lọc thời gian"}
             </p>
           </div>
         )}
@@ -253,14 +287,14 @@ const RecordingManagement = () => {
                   </button>
                 </div>
               </div>
-              
+
               {/* Video Player Container centered vertically */}
               <div className="flex-1 flex items-center justify-center relative">
                 {/* Decorative gradient orbs (more transparent) */}
                 <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-blue-200/10 rounded-full blur-3xl"></div>
                 <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-indigo-200/10 rounded-full blur-3xl"></div>
                 <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-blue-100/05 rounded-full blur-3xl"></div>
-                
+
                 {/* Video container with more transparent glass effect */}
                 <div className="relative w-full max-w-6xl max-h-full bg-white/15 backdrop-blur-lg rounded-2xl border border-indigo-200/30 overflow-hidden shadow-lg">
                   <VideoPlayer
