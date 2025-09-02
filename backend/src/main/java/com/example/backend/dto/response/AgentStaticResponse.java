@@ -10,5 +10,5 @@ import lombok.NoArgsConstructor;
 public class AgentStaticResponse {
     private Double avgRating;
     private Integer totalCalls;
-    private Long totalCallTime;
+    private Double totalCallTime;
 }

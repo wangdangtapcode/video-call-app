@@ -18,5 +18,5 @@ public interface UserMetricRepository extends JpaRepository<UserMetric, Long> {
     Integer findTotalCallsToday();
 
     @Query("SELECT SUM(u.totalCallTime) FROM UserMetric u")
-    Long findTotalCallTimeToday();
+    Double findTotalCallTimeToday();
 }

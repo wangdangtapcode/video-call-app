@@ -78,10 +78,19 @@ export const VideoCall = () => {
     }
   }, [requestId, token]);
 
-  const handleCallEnd = async () => {
+  const handleCallEnd = async (sessionId=null, rating = null, feedback = null) => {
     console.log("handleCallEnd called, updating user status to ONLINE");
     
     try {
+
+      if (rating && sessionId) {
+        await axios.post(`http://localhost:8081/api/record/rating`, {
+          key: sessionId,
+          rating,
+          feedback: feedback || ""
+        });
+      }
+
       // Update user status to ONLINE to prevent unwanted re-renders
       await updateStatus("ONLINE");
     } catch (error) {

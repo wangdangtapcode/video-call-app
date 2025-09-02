@@ -638,12 +638,12 @@ class OpenViduService {
     }
   }
 
-    /**
+  /**
    * Recording Function
    */
-  async startRecording(agentId, userId){
-    try{
-      console.log("Start recording with sessionId: ", this.mySessionId)
+  async startRecording(agentId, userId) {
+    try {
+      console.log("Start recording with sessionId: ", this.mySessionId);
       const response = await axios.post(
         `${this.APPLICATION_SERVER_URL}/api/openvidu/recording/start/${this.mySessionId}?agentId=${agentId}&userId=${userId}`,
         {
@@ -651,18 +651,18 @@ class OpenViduService {
             "Content-Type": "application/json",
           },
         }
-      )
+      );
       this.recordingId = response.data.recordingId;
       console.log("Recording ID:", this.recordingId);
       console.log("Recording started:", response.data);
-      return 
-    } catch (error){
-      throw error
+      return this.mySessionId;
+    } catch (error) {
+      throw error;
     }
   }
-  async stopRecording(){
-    try{
-      console.log("Stop recording with id: ", this.recordingId)
+  async stopRecording() {
+    try {
+      console.log("Stop recording with id: ", this.recordingId);
       const response = await axios.post(
         `${this.APPLICATION_SERVER_URL}/api/openvidu/recording/stop/${this.recordingId}`,
         {
@@ -670,11 +670,11 @@ class OpenViduService {
             "Content-Type": "application/json",
           },
         }
-      )
+      );
       console.log("Recording stopped:", response.data);
       return response.data;
-    } catch (error){
-      throw error
+    } catch (error) {
+      throw error;
     }
   }
 }

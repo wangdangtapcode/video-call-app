@@ -3,8 +3,9 @@ target/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
-
+.env
 src/main/java/com/example/backend/config/PrivateKey.java
+**/PrivateKey.java
 
 ### STS ###
 .apt_generated

@@ -16,6 +16,7 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/record")
@@ -25,6 +26,7 @@ public class RecordController {
 
     @Autowired
     private S3TreeService s3TreeService;
+
     @GetMapping
     public ResponseEntity<List<RecordResponse>> listVideos(
             @RequestParam(required = false) String startDate,
@@ -57,8 +59,7 @@ public class RecordController {
     @GetMapping("/download")
     public ResponseEntity<?> getPresignedUrl(
             @RequestParam String key,
-            @RequestParam(required = false) Boolean folder
-    ) {
+            @RequestParam(required = false) Boolean folder) {
         Duration expire = Duration.ofMinutes(10);
 
         if (Boolean.TRUE.equals(folder)) {
@@ -68,5 +69,14 @@ public class RecordController {
             // Trả về URL đơn nếu là file
             return ResponseEntity.ok(recordService.getFilePresignedUrl(key, expire));
         }
+    }
+
+    @PostMapping("/rating")
+    public ResponseEntity<?> rating(@RequestBody Map<String, String> requestBody) {
+        String key = requestBody.get("key");
+        String rating = requestBody.get("rating");
+        String feedback = requestBody.get("feedback");
+        recordService.rating(key, rating, feedback);
+        return ResponseEntity.ok().body("Rating successfully");
     }
 }

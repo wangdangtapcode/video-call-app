@@ -16,7 +16,11 @@ import {
   Users,
   MessageSquare,
   AlertTriangle,
-  Image as ImageIcon
+  Phone,
+  Star,
+  ArrowRight,
+  Clock,
+  Image as ImageIcon,
 } from "lucide-react";
 import { useWebSocket } from "../../context/WebSocketContext";
 import OpenViduService from "../../services/OpenViduService";
@@ -34,7 +38,7 @@ export const VideoCallRoom = ({
   isWebSocketConnected,
 }) => {
   console.log("VideoCallRoom component rendered");
-  
+
   // Get permission state from previous page
   const getInitialPermissionState = () => {
     try {
@@ -45,7 +49,7 @@ export const VideoCallRoom = ({
         if (Date.now() - parsed.timestamp < 15 * 60 * 1000) {
           return {
             video: parsed.videoEnabled,
-            audio: parsed.audioEnabled
+            audio: parsed.audioEnabled,
           };
         }
       }
@@ -54,15 +58,19 @@ export const VideoCallRoom = ({
     }
     return { video: true, audio: true }; // Default values
   };
-
+  const [sessionId, setSessionId] = useState(null);
   const initialPermissions = getInitialPermissionState();
-  
+
   // States
   const [session, setSession] = useState(null);
   const [publisher, setPublisher] = useState(null);
   const [subscribers, setSubscribers] = useState([]);
-  const [isVideoEnabled, setIsVideoEnabled] = useState(initialPermissions.video);
-  const [isAudioEnabled, setIsAudioEnabled] = useState(initialPermissions.audio);
+  const [isVideoEnabled, setIsVideoEnabled] = useState(
+    initialPermissions.video
+  );
+  const [isAudioEnabled, setIsAudioEnabled] = useState(
+    initialPermissions.audio
+  );
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [callStatus, setCallStatus] = useState("initializing");
@@ -78,9 +86,13 @@ export const VideoCallRoom = ({
   const [recordingData, setRecordingData] = useState(null);
   const [showRecordingResult, setShowRecordingResult] = useState(false);
 
+  const [selectedRating, setSelectedRating] = useState(3)
+  const [ratingDescription, setRatingDescription] = useState("Hỗ trợ bình thường")
+  const [feedbackText, setFeedbackText] = useState("")
+
   // State cho ảnh
   const [screenshotData, setScreenshotData] = useState(null);
-  const [showScreenshotPreview, setShowScreenshotPreview] = useState(false); 
+  const [showScreenshotPreview, setShowScreenshotPreview] = useState(false);
   const [agentImageData, setAgentImageData] = useState(null);
   const [showAgentImagePreview, setShowAgentImagePreview] = useState(false);
   const [showImageEditor, setShowImageEditor] = useState(false);
@@ -105,6 +117,7 @@ export const VideoCallRoom = ({
   // Determine if current user is agent or user
   const isAgent = userRole === "AGENT";
   const otherParticipant = isAgent ? callData?.user : callData?.agent;
+
 
   const compressImage = (imageData, maxWidth = 800, maxHeight = 600) => {
     return new Promise((resolve) => {
@@ -164,23 +177,23 @@ export const VideoCallRoom = ({
     return () => {
       mounted = false;
       console.log("VideoCallRoom component unmounting, performing cleanup...");
-      
+
       try {
         leaveSession();
         stopCallDuration();
-        
+
         // Cleanup permission state
         sessionStorage.removeItem(`permissions_${requestId}`);
-        
+
         // Force cleanup if normal cleanup fails
         if (openViduService.current) {
           openViduService.current.forceCleanup();
         }
-        
+
         console.log("VideoCallRoom cleanup completed");
       } catch (error) {
         console.error("Error during component cleanup:", error);
-        
+
         // Ensure force cleanup runs even if normal cleanup fails
         if (openViduService.current) {
           openViduService.current.forceCleanup();
@@ -672,7 +685,7 @@ export const VideoCallRoom = ({
   const takeScreenshot = () => {
     if (isAgent) {
       console.log("Taking screenshot...");
-      const videoElement = subscribersRef.current?.querySelector('video');
+      const videoElement = subscribersRef.current?.querySelector("video");
       if (videoElement) {
         const canvas = document.createElement("canvas");
         canvas.width = videoElement.videoWidth;
@@ -697,20 +710,23 @@ export const VideoCallRoom = ({
     }
   };
 
-
-const handleSendImage = async (imageData) => {
+  const handleSendImage = async (imageData) => {
     if (session) {
       try {
         const compressedImage = await compressImage(imageData);
-        openViduService.current.sendSignal("image", { 
-          userId, 
-          imageData: compressedImage 
+        openViduService.current.sendSignal("image", {
+          userId,
+          imageData: compressedImage,
         });
         console.log("Image sent:", compressedImage);
         if (isAgent) {
           setSentImages((prev) => [
             ...prev,
-            { id: Date.now(), data: compressedImage, timestamp: new Date().toLocaleString() },
+            {
+              id: Date.now(),
+              data: compressedImage,
+              timestamp: new Date().toLocaleString(),
+            },
           ]);
         }
         setShowAgentImagePreview(false);
@@ -735,23 +751,22 @@ const handleSendImage = async (imageData) => {
     setShowAgentImagePreview(false);
   };
 
-  
-  const toggleRecording = async() => {
-    if(isRecording){
+  const toggleRecording = async () => {
+    if (isRecording) {
       try {
         const recordingResult = await openViduService.current.stopRecording();
         console.log("Recording stopped successfully:", recordingResult);
-        
+
         // Lưu thông tin recording để hiển thị
         setRecordingData(recordingResult);
         setShowRecordingResult(true);
-        
+
         // Gửi signal với thông tin recording
         openViduService.current.sendSignal("recording-stop", {
           userId,
           recording: false,
           timestamp: Date.now(),
-          recordingData: recordingResult
+          recordingData: recordingResult,
         });
       } catch (error) {
         console.error("Error stopping recording:", error);
@@ -760,19 +775,23 @@ const handleSendImage = async (imageData) => {
     } else {
       try {
         console.log(participants);
-        await openViduService.current.startRecording(participants[0].id, participants[1].id);
+        const sessionId = await openViduService.current.startRecording(
+          participants[0].id,
+          participants[1].id
+        );
         openViduService.current.sendSignal("recording", {
           userId,
           recording: true,
           timestamp: Date.now(),
         });
+        setSessionId(sessionId);
       } catch (error) {
         console.error("Error starting recording:", error);
         alert("Không thể bắt đầu ghi hình. Vui lòng thử lại.");
       }
     }
 
-        // Notify via WebSocket
+    // Notify via WebSocket
     // if (isWebSocketConnected) {
     //   sendMessage(`/app/call/${requestId}/recording`, {
     //     userId,
@@ -782,11 +801,10 @@ const handleSendImage = async (imageData) => {
     // }
   };
 
-
   const leaveSession = async () => {
     try {
       console.log("Leaving OpenVidu session and updating user status...");
-      
+
       // Leave OpenVidu session
       openViduService.current.leaveSession();
 
@@ -797,12 +815,11 @@ const handleSendImage = async (imageData) => {
       setParticipants([]);
       setCallStatus("ended");
       stopCallDuration();
-      
+
       // Cleanup permission state to prevent re-use
       sessionStorage.removeItem(`permissions_${requestId}`);
-      
+
       console.log("Successfully left session and cleaned up states");
-      
     } catch (error) {
       console.error("Error leaving session:", error);
     }
@@ -907,7 +924,26 @@ const handleSendImage = async (imageData) => {
       .toUpperCase()
       .slice(0, 2);
   };
-
+  const getRatingDescription = (rating) => {
+    switch (rating) {
+      case 1:
+        return "Rất tệ"
+      case 2:
+        return "Tệ"
+      case 3:
+        return "Hỗ trợ bình thường"
+      case 4:
+        return "Tốt"
+      case 5:
+        return "Rất tốt"
+      default:
+        return "Hỗ trợ bình thường"
+    }
+  }
+  const handleStarClick = (rating) => {
+    setSelectedRating(rating)
+    setRatingDescription(getRatingDescription(rating))
+  }
   // Permission denied UI
   if (permissionStatus === "denied") {
     return (
@@ -1000,7 +1036,6 @@ const handleSendImage = async (imageData) => {
           </div>
         </div>
       </div>
-
       {/* Main Content */}
       <div className="flex-1 relative p-4 bg-gray-900 flex gap-4">
         {/* Video Grid */}
@@ -1008,11 +1043,17 @@ const handleSendImage = async (imageData) => {
           {/* Own Video */}
           <div className="relative bg-gray-800 rounded-xl overflow-hidden group">
             <div className="w-full h-full bg-gray-700 flex items-center justify-center relative">
-              <div ref={userVideoRef} className="w-full h-full absolute inset-0"></div>
-              {(!isVideoEnabled || callStatus === "connecting" || callStatus === "initializing") && (
+              <div
+                ref={userVideoRef}
+                className="w-full h-full absolute inset-0"
+              ></div>
+              {(!isVideoEnabled ||
+                callStatus === "connecting" ||
+                callStatus === "initializing") && (
                 <div className="absolute inset-0 bg-gray-800 flex items-center justify-center z-10">
                   <div className="text-gray-400 text-center">
-                    {callStatus === "connecting" || callStatus === "initializing" ? (
+                    {callStatus === "connecting" ||
+                    callStatus === "initializing" ? (
                       <>
                         <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
                         <p>Đang kết nối...</p>
@@ -1020,33 +1061,48 @@ const handleSendImage = async (imageData) => {
                     ) : (
                       <>
                         <div className="w-16 h-16 mx-auto mb-4 bg-gray-600 rounded-full flex items-center justify-center">
-                          <span className="text-2xl text-white font-semibold">{getUserInitials(userName)}</span>
+                          <span className="text-2xl text-white font-semibold">
+                            {getUserInitials(userName)}
+                          </span>
                         </div>
                         <p>Bạn đang tắt camera</p>
                       </>
                     )}
                   </div>
-              </div>)}
+                </div>
+              )}
             </div>
             <div className="absolute top-4 left-4 bg-black bg-opacity-60 px-3 py-1 rounded-lg">
-              <span className="text-white text-sm font-medium">{userName} (Bạn)</span>
+              <span className="text-white text-sm font-medium">
+                {userName} (Bạn)
+              </span>
             </div>
             <button
               onClick={toggleFullscreen}
               className="absolute top-4 right-4 p-2 bg-black bg-opacity-60 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
             >
-              {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+              {isFullscreen ? (
+                <Minimize className="w-4 h-4" />
+              ) : (
+                <Maximize className="w-4 h-4" />
+              )}
             </button>
           </div>
 
           {/* Other Participants Video */}
           <div className="relative bg-gray-800 rounded-xl overflow-hidden group">
             <div className="w-full h-full bg-gray-700 flex items-center justify-center relative">
-              <div ref={subscribersRef} className="w-full h-full absolute inset-0"></div>
+              <div
+                ref={subscribersRef}
+                className="w-full h-full absolute inset-0"
+              ></div>
               {(() => {
-                const otherParticipantData = participants.find((p) => p.id !== userId);
+                const otherParticipantData = participants.find(
+                  (p) => p.id !== userId
+                );
                 return (
-                  otherParticipantData && !otherParticipantData.videoEnabled && (
+                  otherParticipantData &&
+                  !otherParticipantData.videoEnabled && (
                     <div className="absolute inset-0 bg-gray-700 flex items-center justify-center z-10">
                       <div className="text-gray-400 text-center">
                         <div className="w-16 h-16 mx-auto mb-4 bg-gray-600 rounded-full flex items-center justify-center">
@@ -1078,7 +1134,8 @@ const handleSendImage = async (imageData) => {
             </div>
             <div className="absolute top-4 left-4 bg-black bg-opacity-60 px-3 py-1 rounded-lg">
               <span className="text-white text-sm font-medium">
-                {participants.find((p) => p.id !== userId)?.name || (isAgent ? "User" : "Agent")}
+                {participants.find((p) => p.id !== userId)?.name ||
+                  (isAgent ? "User" : "Agent")}
               </span>
             </div>
           </div>
@@ -1093,14 +1150,25 @@ const handleSendImage = async (imageData) => {
           >
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-gray-800 text-lg font-semibold">
-                {isAgent ? "Ảnh đã gửi" : "Ảnh đã nhận"} ({(isAgent ? sentImages : receivedImages).length})
+                {isAgent ? "Ảnh đã gửi" : "Ảnh đã nhận"} (
+                {(isAgent ? sentImages : receivedImages).length})
               </h3>
               <button
                 onClick={() => setShowImagesPanel(false)}
                 className="text-gray-500 hover:text-gray-800 transition-colors"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
@@ -1132,16 +1200,15 @@ const handleSendImage = async (imageData) => {
                 ))
               ) : (
                 <p className="text-gray-500 text-sm text-center">
-                  {isAgent ? "Chưa có ảnh nào được gửi" : "Chưa nhận được ảnh nào"}
+                  {isAgent
+                    ? "Chưa có ảnh nào được gửi"
+                    : "Chưa nhận được ảnh nào"}
                 </p>
               )}
             </div>
           </div>
         )}
       </div>
-      
-      
-
       {/* Control Bar */}
       <div className="bg-gray-800 px-6 py-4">
         <div className="flex justify-center items-center space-x-4">
@@ -1228,7 +1295,9 @@ const handleSendImage = async (imageData) => {
                   ? "bg-red-600 text-white hover:bg-red-700 animate-pulse"
                   : "bg-gray-700 text-white hover:bg-gray-600"
               } ${
-                callStatus !== "connected" ? "opacity-50 cursor-not-allowed" : ""
+                callStatus !== "connected"
+                  ? "opacity-50 cursor-not-allowed"
+                  : ""
               }`}
               title={isRecording ? "Dừng ghi hình" : "Bắt đầu ghi hình"}
             >
@@ -1241,11 +1310,11 @@ const handleSendImage = async (imageData) => {
           )}
 
           <button
-              onClick={() => setShowImagesPanel(!showImagesPanel)}
-              className="p-4 rounded-full bg-gray-700 text-white hover:bg-gray-600 transition-all duration-200"
-              title="Danh sách ảnh"
-            >
-              <ImageIcon className="w-6 h-6" />
+            onClick={() => setShowImagesPanel(!showImagesPanel)}
+            className="p-4 rounded-full bg-gray-700 text-white hover:bg-gray-600 transition-all duration-200"
+            title="Danh sách ảnh"
+          >
+            <ImageIcon className="w-6 h-6" />
           </button>
           {/* Leave Call */}
           <button
@@ -1254,7 +1323,7 @@ const handleSendImage = async (imageData) => {
               try {
                 // First leave the session and cleanup
                 await leaveSession();
-                
+
                 // Small delay to ensure cleanup completes
                 // setTimeout(() => {
                 //   console.log("Calling onCallEnd after leaving session");
@@ -1271,7 +1340,6 @@ const handleSendImage = async (imageData) => {
           >
             <PhoneOff className="w-6 h-6" />
           </button>
-          
         </div>
 
         {/* Control Labels */}
@@ -1285,7 +1353,7 @@ const handleSendImage = async (imageData) => {
           <span className="text-xs text-gray-400 w-14 text-center">
             {isScreenSharing ? "Đang chia sẻ" : "Chia sẻ"}
           </span>
-          
+
           {isAgent && (
             <span className="text-xs text-gray-400 w-14 text-center">
               Chụp ảnh
@@ -1296,24 +1364,24 @@ const handleSendImage = async (imageData) => {
               {isRecording ? "Đang ghi" : "Ghi hình"}
             </span>
           )}
-          <span className="text-xs text-gray-400 w-14 text-center">
-          Ảnh
-          </span>
+          <span className="text-xs text-gray-400 w-14 text-center">Ảnh</span>
           <span className="text-xs text-gray-400 w-14 text-center ml-8">
             Rời phòng
           </span>
-
         </div>
       </div>
-
       {/* Settings Panel */}
       {showSettings && (
         <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-gray-800 p-6 rounded-xl w-96 max-w-90vw">
-            <h3 className="text-white text-lg font-semibold mb-4">Cài đặt cuộc gọi</h3>
+            <h3 className="text-white text-lg font-semibold mb-4">
+              Cài đặt cuộc gọi
+            </h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-gray-300 text-sm mb-2">Thông tin cuộc gọi</label>
+                <label className="block text-gray-300 text-sm mb-2">
+                  Thông tin cuộc gọi
+                </label>
                 <div className="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm">
                   <p>Request ID: {requestId}</p>
                   <p>Vai trò: {isAgent ? "Agent" : "User"}</p>
@@ -1323,31 +1391,47 @@ const handleSendImage = async (imageData) => {
                 </div>
               </div>
               <div>
-                <label className="block text-gray-300 text-sm mb-2">Chất lượng video</label>
+                <label className="block text-gray-300 text-sm mb-2">
+                  Chất lượng video
+                </label>
                 <select className="w-full bg-gray-700 text-white px-3 py-2 rounded-lg">
                   <option value="480p">SD (480p) - Tiết kiệm băng thông</option>
-                  <option value="720p" selected>HD (720p) - Khuyến nghị</option>
-                  <option value="1080p">Full HD (1080p) - Chất lượng cao</option>
+                  <option value="720p" selected>
+                    HD (720p) - Khuyến nghị
+                  </option>
+                  <option value="1080p">
+                    Full HD (1080p) - Chất lượng cao
+                  </option>
                 </select>
               </div>
               <div>
-                <label className="block text-gray-300 text-sm mb-2">Người tham gia ({participants.length})</label>
+                <label className="block text-gray-300 text-sm mb-2">
+                  Người tham gia ({participants.length})
+                </label>
                 <div className="bg-gray-700 rounded-lg p-3 max-h-32 overflow-y-auto">
                   {participants.length > 0 ? (
                     participants.map((participant, index) => (
-                      <div key={participant.id} className="flex items-center justify-between text-sm text-white mb-1">
+                      <div
+                        key={participant.id}
+                        className="flex items-center justify-between text-sm text-white mb-1"
+                      >
                         <span>{participant.name}</span>
-                        <span className="text-gray-400 text-xs">{participant.role}</span>
+                        <span className="text-gray-400 text-xs">
+                          {participant.role}
+                        </span>
                       </div>
                     ))
                   ) : (
-                    <p className="text-gray-400 text-sm">Chưa có người tham gia</p>
+                    <p className="text-gray-400 text-sm">
+                      Chưa có người tham gia
+                    </p>
                   )}
                 </div>
               </div>
               <div>
                 <label className="block text-gray-300 text-sm mb-2">
-                  {isAgent ? "Ảnh đã gửi" : "Ảnh đã nhận"} ({isAgent ? sentImages.length : receivedImages.length})
+                  {isAgent ? "Ảnh đã gửi" : "Ảnh đã nhận"} (
+                  {isAgent ? sentImages.length : receivedImages.length})
                 </label>
                 <div className="bg-gray-700 rounded-lg p-3 max-h-48 overflow-y-auto">
                   {(isAgent ? sentImages : receivedImages).length > 0 ? (
@@ -1372,14 +1456,18 @@ const handleSendImage = async (imageData) => {
                     ))
                   ) : (
                     <p className="text-gray-400 text-sm">
-                      {isAgent ? "Chưa có ảnh nào được gửi" : "Chưa nhận được ảnh nào"}
+                      {isAgent
+                        ? "Chưa có ảnh nào được gửi"
+                        : "Chưa nhận được ảnh nào"}
                     </p>
                   )}
                 </div>
               </div>
               {callStatus === "error" && (
                 <div>
-                  <label className="block text-gray-300 text-sm mb-2">Thông tin lỗi</label>
+                  <label className="block text-gray-300 text-sm mb-2">
+                    Thông tin lỗi
+                  </label>
                   <div className="bg-red-900 text-red-200 px-3 py-2 rounded-lg text-xs">
                     <p>Lỗi: {error}</p>
                     <p>Status: {callStatus}</p>
@@ -1399,7 +1487,6 @@ const handleSendImage = async (imageData) => {
           </div>
         </div>
       )}
-
       {/* Error Overlay */}
       {error && callStatus === "error" && (
         <div className="absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
@@ -1439,23 +1526,85 @@ const handleSendImage = async (imageData) => {
           </div>
         </div>
       )}
-
       {/* Call Ended Overlay */}
       {callStatus === "ended" && (
-        <div className="absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-          <div className="text-center text-white">
-            <h2 className="text-2xl font-bold mb-4">Cuộc gọi đã kết thúc</h2>
-            <p className="text-gray-300 mb-4">
-              Thời gian gọi: {formatDuration(callDuration)}
-            </p>
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-900/95 to-black/95 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="text-center text-white bg-gradient-to-br from-slate-800 to-slate-900 p-8 rounded-3xl shadow-2xl w-full max-w-lg border border-slate-700/50 transform animate-in fade-in-0 zoom-in-95 duration-300">
+            {/* Header with Icon */}
+            <div className="flex items-center justify-center mb-6">
+              <div className="bg-red-500/20 p-4 rounded-full border border-red-500/30">
+                <Phone className="w-8 h-8 text-red-400" />
+              </div>
+            </div>
+
+            <h2 className="text-3xl font-bold mb-2 bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
+              Cuộc gọi đã kết thúc
+            </h2>
+            {!isAgent && (
+              <div className="space-y-6">
+                {/* Rating Section */}
+                <div className="text-left">
+                  <label className="flex items-center gap-2 text-slate-200 mb-3 font-medium">
+                    <Star className="w-5 h-5 text-yellow-400" />
+                    Đánh giá hỗ trợ:
+                  </label>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-center gap-2">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          onClick={() => handleStarClick(star)}
+                          className="group transition-all duration-200 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-yellow-400/50 rounded-full p-1"
+                        >
+                          <Star
+                            className={`w-8 h-8 transition-all duration-200 ${
+                              star <= selectedRating
+                                ? "text-yellow-400 fill-yellow-400"
+                                : "text-slate-500 hover:text-yellow-300"
+                            }`}
+                          />
+                        </button>
+                      ))}
+                    </div>
+                    <div className="text-center">
+                      <span className="inline-block bg-slate-700/50 px-4 py-2 rounded-full text-slate-200 font-medium border border-slate-600/50">
+                        {selectedRating} sao - {ratingDescription}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Feedback Section */}
+                <div className="text-left">
+                  <label className="flex items-center gap-2 text-slate-200 mb-3 font-medium">
+                    <MessageSquare className="w-5 h-5 text-blue-400" />
+                    Phản hồi thêm (tùy chọn):
+                  </label>
+                  <textarea
+                    value={feedbackText}
+                    onChange={(e) => setFeedbackText(e.target.value)}
+                    className="w-full p-4 rounded-xl bg-slate-700/50 border border-slate-600/50 text-white placeholder-slate-400 resize-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200 hover:bg-slate-700/70"
+                    rows="4"
+                    placeholder="Chia sẻ trải nghiệm của bạn về cuộc gọi này..."
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Action Button */}
             <button
               onClick={() => {
-                console.log("Dashboard button clicked from call ended overlay");
-                onCallEnd();
+                console.log("Dashboard button clicked with rating:", selectedRating, "feedback:", feedbackText)
+                if(isAgent) {
+                  onCallEnd()
+                } else {
+                  onCallEnd(sessionId, selectedRating, feedbackText)
+                }
               }}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg"
+              className="group mt-8 w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-8 py-4 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl hover:shadow-blue-500/25 transform hover:scale-[1.02] active:scale-[0.98]"
             >
-              Quay lại Dashboard
+              <span>Quay lại Dashboard</span>
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-200" />
             </button>
           </div>
         </div>
@@ -1472,15 +1621,27 @@ const handleSendImage = async (imageData) => {
             <div className="space-y-4">
               <div className="bg-gray-700 p-4 rounded-lg">
                 <div className="text-white text-sm space-y-2">
-                  <p><span className="text-gray-400">ID:</span> {recordingData.recordingId}</p>
-                  <p><span className="text-gray-400">Thời gian:</span> {Math.round(recordingData.duration)}s</p>
-                  <p><span className="text-gray-400">Kích thước:</span> {(recordingData.fileSize / 1024 / 1024).toFixed(2)} MB</p>
-                  <p><span className="text-gray-400">Trạng thái:</span> 
-                    <span className={`ml-1 px-2 py-1 rounded text-xs ${
-                      recordingData.status === 'UPLOADED' 
-                        ? 'bg-green-600 text-white' 
-                        : 'bg-yellow-600 text-white'
-                    }`}>
+                  <p>
+                    <span className="text-gray-400">ID:</span>{" "}
+                    {recordingData.recordingId}
+                  </p>
+                  <p>
+                    <span className="text-gray-400">Thời gian:</span>{" "}
+                    {Math.round(recordingData.duration)}s
+                  </p>
+                  <p>
+                    <span className="text-gray-400">Kích thước:</span>{" "}
+                    {(recordingData.fileSize / 1024 / 1024).toFixed(2)} MB
+                  </p>
+                  <p>
+                    <span className="text-gray-400">Trạng thái:</span>
+                    <span
+                      className={`ml-1 px-2 py-1 rounded text-xs ${
+                        recordingData.status === "UPLOADED"
+                          ? "bg-green-600 text-white"
+                          : "bg-yellow-600 text-white"
+                      }`}
+                    >
                       {recordingData.status}
                     </span>
                   </p>
@@ -1490,11 +1651,21 @@ const handleSendImage = async (imageData) => {
               {recordingData.url && (
                 <div className="space-y-3">
                   <button
-                    onClick={() => window.open(recordingData.url, '_blank')}
+                    onClick={() => window.open(recordingData.url, "_blank")}
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center justify-center"
                   >
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    <svg
+                      className="w-4 h-4 mr-2"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                      />
                     </svg>
                     Tải về video
                   </button>
@@ -1506,8 +1677,18 @@ const handleSendImage = async (imageData) => {
                     }}
                     className="w-full bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded-lg transition-colors flex items-center justify-center"
                   >
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    <svg
+                      className="w-4 h-4 mr-2"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                      />
                     </svg>
                     Sao chép link
                   </button>
@@ -1528,7 +1709,8 @@ const handleSendImage = async (imageData) => {
                   setRecordingData(null);
                 }}
                 className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
-              >Đóng
+              >
+                Đóng
               </button>
             </div>
           </div>
@@ -1547,14 +1729,13 @@ const handleSendImage = async (imageData) => {
           image
           Source="screenshot"
         />
-        
       )}
       {/* Popup gửi ảnh thành công */}
-        {showSendSuccessPopup && (
-          <div className="absolute bot-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50">
-            <p className="text-sm font-medium">Gửi ảnh thành công!</p>
-          </div>
-        )}
+      {showSendSuccessPopup && (
+        <div className="absolute bot-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50">
+          <p className="text-sm font-medium">Gửi ảnh thành công!</p>
+        </div>
+      )}
       {showAgentImagePreview && agentImageData && (
         <ScreenshotPreview
           screenshotData={agentImageData}
@@ -1569,29 +1750,29 @@ const handleSendImage = async (imageData) => {
         />
       )}
       {/* Popup nhận được ảnh */}
-        {showReceivedImagePopup && receivedImageData && (
-          <div className="absolute bot-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg z-50">
-            <div className="flex items-center space-x-2">
-              <p className="text-sm font-medium">Nhận được ảnh mới!</p>
-              <button
-                onClick={() => {
-                  setAgentImageData(receivedImageData);
-                  setShowAgentImagePreview(true);
-                  setShowReceivedImagePopup(false);
-                }}
-                className="bg-white text-blue-600 px-2 py-1 rounded text-xs hover:bg-gray-200"
-              >
-                Xem ảnh
-              </button>
-              <button
-                onClick={() => setShowReceivedImagePopup(false)}
-                className="bg-white text-blue-600 px-2 py-1 rounded text-xs hover:bg-gray-200"
-              >
-                Đóng
-              </button>
-            </div>
+      {showReceivedImagePopup && receivedImageData && (
+        <div className="absolute bot-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg z-50">
+          <div className="flex items-center space-x-2">
+            <p className="text-sm font-medium">Nhận được ảnh mới!</p>
+            <button
+              onClick={() => {
+                setAgentImageData(receivedImageData);
+                setShowAgentImagePreview(true);
+                setShowReceivedImagePopup(false);
+              }}
+              className="bg-white text-blue-600 px-2 py-1 rounded text-xs hover:bg-gray-200"
+            >
+              Xem ảnh
+            </button>
+            <button
+              onClick={() => setShowReceivedImagePopup(false)}
+              className="bg-white text-blue-600 px-2 py-1 rounded text-xs hover:bg-gray-200"
+            >
+              Đóng
+            </button>
           </div>
-        )}
+        </div>
+      )}
       {showImageEditor && editingImageData && (
         <ImageEditor
           imageData={editingImageData}
@@ -1604,7 +1785,7 @@ const handleSendImage = async (imageData) => {
           onCancel={() => {
             setShowImageEditor(false);
             setEditingImageData(null);
-            setShowScreenshotPreview(true)
+            setShowScreenshotPreview(true);
           }}
         />
       )}

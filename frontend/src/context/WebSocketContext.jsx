@@ -25,6 +25,7 @@ export const WebSocketProvider = ({ children }) => {
   const [connectionStatus, setConnectionStatus] = useState("disconnected");
   const [userRole, setUserRole] = useState(null);
   const [userId, setUserId] = useState(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   const stompClientRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
@@ -32,6 +33,9 @@ export const WebSocketProvider = ({ children }) => {
   const roleSubscriptionsRef = useRef(new Map());
   const connectionAttempts = useRef(0);
   const isConnectingRef = useRef(false);
+  const lastConnectParamsRef = useRef(null);
+  const autoReconnectEnabledRef = useRef(true);
+  const componentMountedRef = useRef(true);
 
   const WEBSOCKET_URL = "http://localhost:8081/ws";
   const RECONNECT_DELAY = 3000;
@@ -53,8 +57,23 @@ export const WebSocketProvider = ({ children }) => {
   }, []);
 
   const cleanupConnection = useCallback(() => {
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+
     if (stompClientRef.current) {
       try {
+        // Đóng tất cả subscriptions trước khi deactivate
+        roleSubscriptionsRef.current.forEach((subscription) => {
+          try {
+            subscription.unsubscribe();
+          } catch (error) {
+            console.warn("Error unsubscribing during cleanup:", error);
+          }
+        });
+        roleSubscriptionsRef.current.clear();
+
         stompClientRef.current.deactivate();
       } catch (error) {
         console.warn("Error deactivating STOMP client:", error);
@@ -77,8 +96,17 @@ export const WebSocketProvider = ({ children }) => {
       return;
     }
 
+    // Kiểm tra component có còn mounted không
+    if (!componentMountedRef.current) {
+      console.log("Component unmounted, skipping connection");
+      return;
+    }
+
     isConnectingRef.current = true;
     cleanupConnection();
+
+    // Lưu parameters để auto-reconnect
+    lastConnectParamsRef.current = { token, userData };
 
     if (userData) {
       setUserRole(userData.role);
@@ -106,12 +134,20 @@ export const WebSocketProvider = ({ children }) => {
         connectHeaders: token ? { Authorization: `Bearer ${token}` } : {},
 
         onConnect: (frame) => {
+          // Kiểm tra component có còn mounted không
+          if (!componentMountedRef.current) {
+            console.log("Component unmounted, closing connection");
+            client.deactivate();
+            return;
+          }
+
           console.log("✅ WebSocket connected successfully!");
           setIsConnected(true);
           setConnectionStatus("connected");
           connectionAttempts.current = 0;
           isConnectingRef.current = false;
           stompClientRef.current = client;
+          setIsInitialized(true);
 
           if (userData) {
             subscribeToRoleChannels(userData.role, userData.id);
@@ -124,7 +160,11 @@ export const WebSocketProvider = ({ children }) => {
           setIsConnected(false);
           setConnectionStatus("disconnected");
           isConnectingRef.current = false;
-          scheduleReconnect();
+          
+          // Chỉ auto-reconnect nếu component còn mounted và auto-reconnect được enable
+          if (componentMountedRef.current && autoReconnectEnabledRef.current) {
+            scheduleReconnect();
+          }
         },
 
         onStompError: (frame) => {
@@ -132,7 +172,10 @@ export const WebSocketProvider = ({ children }) => {
           setIsConnected(false);
           setConnectionStatus("error");
           isConnectingRef.current = false;
-          scheduleReconnect();
+          
+          if (componentMountedRef.current && autoReconnectEnabledRef.current) {
+            scheduleReconnect();
+          }
         },
 
         onWebSocketError: (event) => {
@@ -153,9 +196,8 @@ export const WebSocketProvider = ({ children }) => {
           setConnectionStatus("disconnected");
           isConnectingRef.current = false;
 
-          // Only auto-reconnect for unexpected closes
-          if (event.code !== 1000) {
-            // 1000 = normal closure
+          // Only auto-reconnect for unexpected closes và khi component còn mounted
+          if (event.code !== 1000 && componentMountedRef.current && autoReconnectEnabledRef.current) {
             scheduleReconnect();
           }
         },
@@ -171,6 +213,12 @@ export const WebSocketProvider = ({ children }) => {
   }, []);
 
   const scheduleReconnect = useCallback(() => {
+    // Không reconnect nếu component đã unmount hoặc auto-reconnect bị disable
+    if (!componentMountedRef.current || !autoReconnectEnabledRef.current) {
+      console.log("Reconnect skipped: component unmounted or auto-reconnect disabled");
+      return;
+    }
+
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
     }
@@ -189,9 +237,29 @@ export const WebSocketProvider = ({ children }) => {
     );
 
     reconnectTimeoutRef.current = setTimeout(() => {
-      const userData = JSON.parse(sessionStorage.getItem("userData") || "{}");
-      if (userData.token && userData.user) {
-        connect(userData.token, userData.user);
+      // Kiểm tra lại trước khi reconnect
+      if (!componentMountedRef.current || !autoReconnectEnabledRef.current) {
+        return;
+      }
+
+      // Sử dụng last connect params hoặc lấy từ sessionStorage
+      let token, userData;
+      
+      if (lastConnectParamsRef.current) {
+        token = lastConnectParamsRef.current.token;
+        userData = lastConnectParamsRef.current.userData;
+      } else {
+        const storedData = JSON.parse(sessionStorage.getItem("userData") || "{}");
+        if (storedData.token && storedData.user) {
+          token = storedData.token;
+          userData = storedData.user;
+        }
+      }
+
+      if (token && userData) {
+        connect(token, userData);
+      } else {
+        console.log("No valid token/userData found for reconnection");
       }
     }, delay);
   }, [connect]);
@@ -371,6 +439,9 @@ export const WebSocketProvider = ({ children }) => {
   }, [userRole, userId, subscribeToRoleChannels]);
 
   const disconnect = useCallback(() => {
+    // Disable auto-reconnect khi disconnect thủ công
+    autoReconnectEnabledRef.current = false;
+    
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
@@ -382,17 +453,87 @@ export const WebSocketProvider = ({ children }) => {
     setConnectionStatus("disconnected");
     setUserRole(null);
     setUserId(null);
+    setIsInitialized(false);
     subscriptionsRef.current.clear();
     roleSubscriptionsRef.current.clear();
     connectionAttempts.current = 0;
+    lastConnectParamsRef.current = null;
   }, [cleanupConnection]);
+
+  // Auto-reconnect với stored credentials khi component mount
+  useEffect(() => {
+    componentMountedRef.current = true;
+    autoReconnectEnabledRef.current = true;
+
+    // Tự động connect nếu có credentials trong sessionStorage
+    const tryAutoConnect = () => {
+      const storedData = JSON.parse(sessionStorage.getItem("userData") || "{}");
+      if (storedData.token && storedData.user && !isConnected && !isConnectingRef.current) {
+        console.log("Auto-connecting with stored credentials...");
+        connect(storedData.token, storedData.user);
+      }
+    };
+
+    // Delay nhỏ để đảm bảo component đã mount hoàn toàn
+    const autoConnectTimer = setTimeout(tryAutoConnect, 100);
+
+    return () => {
+      clearTimeout(autoConnectTimer);
+    };
+  }, []); // Chỉ chạy khi component mount
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      componentMountedRef.current = false;
+      autoReconnectEnabledRef.current = false;
       disconnect();
     };
   }, [disconnect]);
+
+  // Listen for page visibility changes để reconnect khi user quay lại tab
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && componentMountedRef.current) {
+        // User quay lại tab, kiểm tra connection
+        if (!isConnected && !isConnectingRef.current && autoReconnectEnabledRef.current) {
+          const storedData = JSON.parse(sessionStorage.getItem("userData") || "{}");
+          if (storedData.token && storedData.user) {
+            console.log("Page visible again, attempting to reconnect...");
+            connectionAttempts.current = 0; // Reset attempts
+            connect(storedData.token, storedData.user);
+          }
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [isConnected, connect]);
+
+  // Helper function để enable/disable auto-reconnect
+  const setAutoReconnect = useCallback((enabled) => {
+    autoReconnectEnabledRef.current = enabled;
+    console.log(`Auto-reconnect ${enabled ? 'enabled' : 'disabled'}`);
+  }, []);
+
+  // Function để force reconnect (reset attempts và connect ngay)
+  const forceReconnect = useCallback(() => {
+    if (isConnectingRef.current) {
+      console.log("Already connecting, skipping force reconnect");
+      return;
+    }
+
+    connectionAttempts.current = 0;
+    autoReconnectEnabledRef.current = true;
+    
+    const storedData = JSON.parse(sessionStorage.getItem("userData") || "{}");
+    if (storedData.token && storedData.user) {
+      console.log("Force reconnecting...");
+      cleanupConnection();
+      setTimeout(() => connect(storedData.token, storedData.user), 100);
+    }
+  }, [connect, cleanupConnection]);
 
   const value = useMemo(
     () => ({
@@ -400,11 +541,14 @@ export const WebSocketProvider = ({ children }) => {
       connectionStatus,
       userRole,
       userId,
+      isInitialized,
       sendMessage,  
       subscribe,
       unsubscribe,
       connect,
       disconnect,
+      setAutoReconnect,
+      forceReconnect,
       client: stompClientRef.current,
     }),
     [
@@ -412,11 +556,14 @@ export const WebSocketProvider = ({ children }) => {
       connectionStatus,
       userRole,
       userId,
+      isInitialized,
       sendMessage,
       subscribe,
       unsubscribe,
       connect,
       disconnect,
+      setAutoReconnect,
+      forceReconnect,
     ]
   );
 

@@ -35,6 +35,9 @@ public class OpenViduService {
     @Autowired
     private RecordingRepository recordingRepository;
 
+    @Autowired
+    private UserMetricsService userMetricsService;
+
     @PostConstruct
     public void init() {
         this.openVidu = new OpenVidu(OPENVIDU_URL, OPENVIDU_SECRET);
@@ -123,7 +126,7 @@ public class OpenViduService {
                 propertiesBuilder.data(data);
             }
 
-//            ConnectionProperties connectionProperties = propertiesBuilder.build();
+            // ConnectionProperties connectionProperties = propertiesBuilder.build();
             ConnectionProperties connectionProperties = ConnectionProperties.fromJson(params).build();
             Connection connection = session.createConnection(connectionProperties);
 
@@ -150,8 +153,8 @@ public class OpenViduService {
         }
     }
 
-    public RecordingDTO startRecording(String sessionId, Long agentId, Long userId) throws  OpenViduHttpException, OpenViduJavaClientException {
-
+    public RecordingDTO startRecording(String sessionId, Long agentId, Long userId)
+            throws OpenViduHttpException, OpenViduJavaClientException {
 
         RecordingProperties properties = new RecordingProperties.Builder()
                 .outputMode(Recording.OutputMode.COMPOSED)
@@ -159,8 +162,9 @@ public class OpenViduService {
                 .hasAudio(true)
                 .hasVideo(true)
                 .build();
-        Recording recording = this.openVidu.startRecording(sessionId,properties);
-        com.example.backend.model.Recording dbRecording = recordService.createRecording(recording.getId(), sessionId, agentId,userId);
+        Recording recording = this.openVidu.startRecording(sessionId, properties);
+        com.example.backend.model.Recording dbRecording = recordService.createRecording(recording.getId(), sessionId,
+                agentId, userId);
         recordingRepository.save(dbRecording);
         recordService.updateRecordingStatus(dbRecording.getRecordingId(), RecordingStatus.STARTED);
         return RecordingDTO.builder()
@@ -171,13 +175,26 @@ public class OpenViduService {
                 .build();
     }
 
-    public RecordingDTO stopRecording(String recordingId) throws OpenViduJavaClientException, OpenViduHttpException{
+    public RecordingDTO stopRecording(String recordingId) throws OpenViduJavaClientException, OpenViduHttpException {
         Recording recording = this.openVidu.stopRecording(recordingId);
 
-        com.example.backend.model.Recording dbRecording = recordService.updateRecordingDetails(recordingId,recording);
-        recordService.updateRecordingStatus(recordingId,RecordingStatus.STOPPED);
+        com.example.backend.model.Recording dbRecording = recordService.updateRecordingDetails(recordingId, recording);
+        recordService.updateRecordingStatus(recordingId, RecordingStatus.STOPPED);
         recordService.uploadToS3(recording);
-//        deleteLocalRecording(recordingId);
+
+        // Update metrics: Cập nhật khi recording kết thúc (actual call duration)
+//        if (dbRecording.getAgentId() != null && recording.getDuration() != null) {
+//            // Convert duration from seconds to long
+//            long durationInSeconds = Math.round(recording.getDuration());
+//            userMetricsService.updateCallCompleted(
+//                    dbRecording.getAgentId(),
+//                    dbRecording.getUserId(),
+//                    durationInSeconds,
+//                    true // recording completed successfully
+//            );
+//        }
+
+        // deleteLocalRecording(recordingId);
 
         return RecordingDTO.builder()
                 .recordingId(recording.getId())
@@ -189,16 +206,14 @@ public class OpenViduService {
                 .databaseId(dbRecording.getId())
                 .build();
 
-
     }
 
-
-    public void deleteLocalRecording(String recordingId){
-        try{
+    public void deleteLocalRecording(String recordingId) {
+        try {
             openVidu.deleteRecording(recordingId);
-        } catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
-            System.out.println("Error in deleting local record: " +  e.getMessage());
+            System.out.println("Error in deleting local record: " + e.getMessage());
         }
         return;
     }

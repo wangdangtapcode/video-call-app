@@ -22,10 +22,27 @@ VALUES
 ('user1@example.com', '123456', 'User One', 'OFFLINE', 'USER',true,'LOCAL'),
 ('user2@example.com', '123456', 'User Two', 'OFFLINE', 'USER',true,'LOCAL');
 
-INSERT INTO user_metrics ( rating, total_calls, total_call_time, user_id)
+INSERT INTO user_metrics (
+    rating, 
+    total_calls, 
+    total_call_time, 
+    average_call_duration, 
+    successful_calls, 
+    failed_calls, 
+    total_accepted_calls, 
+    total_rejected_calls, 
+    total_ratings, 
+    five_star_ratings, 
+    four_star_ratings, 
+    three_star_ratings, 
+    two_star_ratings, 
+    one_star_ratings, 
+    average_response_time, 
+    user_id
+)
 VALUES
-( 0.00, 0, 0, 2),
-( 0.00, 0, 0, 3);
+(0.00, 0, 0.00, 0.00, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.00, 2),
+(0.00, 0, 0.00, 0.00, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.00, 3);
 
 
 
