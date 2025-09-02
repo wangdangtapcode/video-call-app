@@ -1,23 +1,28 @@
 package com.example.backend.service;
 
+import com.example.backend.dto.request.RecordingFilterRequest;
 import com.example.backend.dto.response.RecordResponse;
 import com.example.backend.dto.response.RecordUrlResponse;
+import com.example.backend.dto.response.RecordingDTO;
+import com.example.backend.dto.response.RecordingSegmentDTO;
+import com.example.backend.exception.ResourceNotFoundException;
 import com.example.backend.dto.response.RecordingResponse;
 import com.example.backend.dto.response.TimeSeriesPoint;
 import com.example.backend.exception.BusinessException;
 import com.example.backend.mapper.RecordingMapper;
 import com.example.backend.model.Recording;
-import com.example.backend.model.RecordingStatus;
+import com.example.backend.enums.RecordingStatus;
+import com.example.backend.model.RecordingSegment;
 import com.example.backend.model.User;
 import com.example.backend.repository.RecordingRepository;
 import com.example.backend.repository.UserRepository;
 import io.openvidu.java.client.OpenVidu;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.scheduling.annotation.Async;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
-import software.amazon.awssdk.core.sync.ResponseTransformer;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
@@ -29,13 +34,9 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.file.Paths;
-import java.time.Duration;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -62,18 +63,18 @@ public class RecordService {
     private String bucketName = "openvidurecord";
 
 
-    public List<TimeSeriesPoint> getCallStats(String interval,
-                                              LocalDateTime start,
-                                              LocalDateTime end) {
-        List<Object[]> rows = recordingRepository.countByInterval(interval, start, end);
-        return rows.stream()
-                .map(r -> new TimeSeriesPoint(
-                        ((java.sql.Timestamp) r[0]).toLocalDateTime(),
-                        ((Number) r[1]).longValue(),
-                        ((Double) r[2]).doubleValue()
-                ))
-                .toList();
-    }
+//    public List<TimeSeriesPoint> getCallStats(String interval,
+//                                              LocalDateTime start,
+//                                              LocalDateTime end) {
+//        List<Object[]> rows = recordingRepository.countByInterval(interval, start, end);
+//        return rows.stream()
+//                .map(r -> new TimeSeriesPoint(
+//                        ((java.sql.Timestamp) r[0]).toLocalDateTime(),
+//                        ((Number) r[1]).longValue(),
+//                        ((Double) r[2]).doubleValue()
+//                ))
+//                .toList();
+//    }
 
     public Page<RecordingResponse> getRecords(Long agentId,
                                               Long userId,
@@ -138,13 +139,14 @@ public class RecordService {
         return new RecordUrlResponse(s3Presigner.presignGetObject(presignRequest).url().toString());
     }
 
-    public Recording createRecording(String recordingId,String sessionId, Long agentId, Long userId){
+    public Recording createRecording(String recordingId,String sessionId, Long agentId, Long userId, Long requestId){
         Recording recording = Recording.builder()
                 .status(RecordingStatus.INIT)
                 .recordingId(recordingId)
                 .sessionId(sessionId)
                 .agentId(agentId)
                 .userId(userId)
+                .requestId(requestId)
                 .build();
         return recordingRepository.save(recording);
     }
@@ -316,6 +318,83 @@ public class RecordService {
                 .filter(obj -> !obj.key().endsWith("/")) // bỏ folder giả
                 .map(obj -> getFilePresignedUrl(obj.key(), expireDuration)) // trả về RecordUrlResponse trực tiếp
                 .collect(Collectors.toList());
+    }
+
+    public Page<RecordingDTO> getRecordingsForAgent(Long agentId, RecordingFilterRequest filterRequest) {
+        System.out.println("Getting recordings for agent {} with date filter: {} to {}" +
+                agentId+ filterRequest.getStartDate() + filterRequest.getEndDate());
+
+        Pageable pageable = createPageable(filterRequest);
+
+        Page<Recording> recordings;
+        if (filterRequest.getStartDate() == null && filterRequest.getEndDate() == null) {
+            // No date filter, fetch all recordings for the agent
+            recordings = recordingRepository.findByAgentId(agentId, pageable);
+        } else {
+            // Apply date filter
+            LocalDateTime startDate = filterRequest.getStartDate() != null ?
+                    filterRequest.getStartDate().atStartOfDay() : LocalDateTime.now().minusYears(100); // Fallback for null
+            LocalDateTime endDate = filterRequest.getEndDate() != null ?
+                    filterRequest.getEndDate().atTime(LocalTime.MAX) : LocalDateTime.now(); // Fallback for null
+
+            recordings = recordingRepository.findByAgentIdAndDateRange(agentId, startDate, endDate, pageable);
+        }
+
+        return recordings.map(this::convertToDTO);
+    }
+
+    // Lấy chi tiết recording theo ID
+    public RecordingDTO getRecordingById(Long recordingId, Long agentId) {
+        System.out.println("Getting recording {} for agent {}" + recordingId + agentId);
+
+        Recording recording = recordingRepository.findById(recordingId)
+                .orElseThrow(() -> new ResourceNotFoundException("Recording not found with id: " + recordingId));
+
+
+        return convertToDTO(recording);
+
+    }
+
+    // Helper methods
+    private Pageable createPageable(RecordingFilterRequest filterRequest) {
+        Sort sort = Sort.by(
+                filterRequest.getSortDir().equalsIgnoreCase("desc") ?
+                        Sort.Direction.DESC : Sort.Direction.ASC,
+                filterRequest.getSortBy()
+        );
+
+        return PageRequest.of(filterRequest.getPage(), filterRequest.getSize(), sort);
+    }
+
+    private RecordingDTO convertToDTO(Recording recording) {
+        List<RecordingSegmentDTO> segmentDTOs = recording.getSegments() != null ?
+                recording.getSegments().stream()
+                        .map(this::convertSegmentToDTO)
+                        .collect(Collectors.toList()) : List.of();
+
+        return RecordingDTO.builder()
+                .databaseId(recording.getId())
+                .sessionId(recording.getSessionId())
+                .recordingId(recording.getRecordingId())
+                .status(recording.getStatus().toString())
+                .duration(recording.getDuration())
+                .fileSize(recording.getFileSize())
+                .url(recording.getS3Url())
+                .startedAt(recording.getStartedAt())
+                .stoppedAt(recording.getStoppedAt())
+                .segments(segmentDTOs)
+                .build();
+    }
+
+    private RecordingSegmentDTO convertSegmentToDTO(RecordingSegment segment) {
+        return RecordingSegmentDTO.builder()
+                .id(segment.getId())
+                .recordingId(segment.getRecording().getId())
+                .startOffsetSeconds(segment.getStartOffsetSeconds())
+                .endOffsetSeconds(segment.getEndOffsetSeconds())
+                .segmentStartTime(segment.getSegmentStartTime())
+                .segmentEndTime(segment.getSegmentEndTime())
+                .build();
     }
 
 }

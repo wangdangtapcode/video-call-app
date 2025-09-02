@@ -1,5 +1,6 @@
 package com.example.backend.model;
 
+import com.example.backend.enums.RecordingStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -7,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "recordings")
@@ -36,6 +38,9 @@ public class Recording {
     @Column(name = "status", nullable = false)
     private RecordingStatus status;
 
+    @Column(name = "request_id")
+    private Long requestId;
+
     @Column(name = "duration")
     private Double duration;
 
@@ -53,4 +58,7 @@ public class Recording {
 
     @Column(name = "stopped_at")
     private LocalDateTime stoppedAt;
+
+    @OneToMany(mappedBy = "recording", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<RecordingSegment> segments;
 }

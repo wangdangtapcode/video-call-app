@@ -15,7 +15,17 @@ import java.util.Optional;
 @Repository
 public interface RecordingRepository extends JpaRepository<Recording,Long> {
     Optional<Recording> findByRecordingId (String recordingId);
-    List<Recording> findBySessionId(String sessionId);
+    Optional<Recording> findBySessionId(String sessionId);
+    Page<Recording> findByAgentId(Long agentId, Pageable pageable);
+
+    @Query("SELECT r FROM Recording r WHERE r.agentId = :agentId " +
+            "AND r.startedAt BETWEEN :startDate AND :endDate")
+    Page<Recording> findByAgentIdAndDateRange(
+            @Param("agentId") Long agentId,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate,
+            Pageable pageable);
+
 
     @Query("""
     SELECT r FROM Recording r

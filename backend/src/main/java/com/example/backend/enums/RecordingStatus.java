@@ -1,4 +1,4 @@
-package com.example.backend.model;
+package com.example.backend.enums;
 
 public enum RecordingStatus {
     INIT,

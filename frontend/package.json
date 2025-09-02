@@ -27,6 +27,7 @@
     "react-router-dom": "^6.30.0",
     "sockjs-client": "^1.6.1",
     "tailwindcss": "^4.1.11",
+    "video.js": "^8.23.4",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

@@ -11,6 +11,7 @@ import { VideoCall } from "../pages/VideoCall";
 import { PermissionRequest } from "../pages/PermissionRequest";
 import AdminRecord from "../pages/admin/AdminRecord";
 import AdminAgent from "../pages/admin/AdminAgent";
+import  RecordingManagement from "../pages/agent/RecordingManagement";
 import AdminStats from "../pages/admin/AdminStats";
 
 
@@ -24,6 +25,7 @@ export const Routers = () => {
 
           {/*Agent Dashboard*/}
           <Route path="/agent" element={<AgentDashboard />} />
+          <Route path="/recordHistory" element={<RecordingManagement />} />
         </Route>
 
         <Route path="/admin" element={<AdminLayout />}>

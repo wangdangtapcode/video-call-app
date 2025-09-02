@@ -5,7 +5,7 @@ target/
 !**/src/test/**/target/
 
 src/main/java/com/example/backend/config/PrivateKey.java
-
+.env
 ### STS ###
 .apt_generated
 .classpath
