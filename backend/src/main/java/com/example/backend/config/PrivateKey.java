@@ -1,9 +1,42 @@
 package com.example.backend.config;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+@Component
 public class PrivateKey {
-    public static final String assetKey = System.getenv("AWS_ACCESS_KEY");
-    public static final String secretKey = System.getenv("AWS_SECRET_KEY");
-    public static final String googleClientId=System.getenv("GOOGLE_CLIENT_ID");
-    public static final String googleClientSecret = System.getenv("GOOGLE_CLIENT_SECRET");
-    public static final String googleRedirectUri = "http://localhost:8081/login/oauth2/code/google";
+    @Value("${AWS_ACCESS_KEY}")
+    private String assetKey;
+
+    @Value("${AWS_SECRET_KEY}")
+    private String secretKey;
+
+    @Value("${GOOGLE_CLIENT_ID}")
+    private String googleClientId;
+
+    @Value("${GOOGLE_CLIENT_SECRET}")
+    private String googleClientSecret;
+
+    @Value("${GOOGLE_REDIRECT_URI:http://localhost:8081/login/oauth2/code/google}")
+    private String googleRedirectUri;
+
+    public String getAssetKey() {
+        return assetKey;
+    }
+
+    public String getSecretKey() {
+        return secretKey;
+    }
+
+    public String getGoogleClientId() {
+        return googleClientId;
+    }
+
+    public String getGoogleClientSecret() {
+        return googleClientSecret;
+    }
+
+    public String getGoogleRedirectUri() {
+        return googleRedirectUri;
+    }
 }
