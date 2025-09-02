@@ -124,6 +124,15 @@ export default function AdminAgent() {
     }
   };
 
+  const handleRoleChange = async (userId, newRole) => {
+    try {
+      await axios.put(`${API_BASE_URL}/user/${userId}/update-role`, { "role": newRole });
+      fetchUsers(searchKeyword, page);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const fetchAgentDetail = async (agentId) => {
     try {
       setIsDetailLoading(true);
@@ -245,6 +254,7 @@ export default function AdminAgent() {
         page={page}
         totalPages={totalPages}
         onPageChange={(newPage) => fetchAgents(searchKeyword, newPage)}
+        onRoleChange={handleRoleChange}
       />
 
       {isModalOpen && (

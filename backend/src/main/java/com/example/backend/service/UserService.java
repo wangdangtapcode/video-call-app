@@ -20,6 +20,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -106,7 +108,7 @@ public class UserService {
                 .orElseThrow(() -> BusinessException.userNotFound(id));
         user.setActive(false);
         User savedUser = userRepository.save(user);
-        webSocketBroadcastService.broadcastBlockUserMessage(id);
+        webSocketBroadcastService.broadcastBlockUserMessage(id, "Bạn đã bị admin block");
         return userMapper.toResponse(savedUser);
     }
 
@@ -147,10 +149,10 @@ public class UserService {
         Page<User> agentPage;
         if (keyword == null || keyword.isEmpty()) {
             // không search → lấy toàn bộ agent
-            agentPage = userRepository.findByRole("AGENT", pageable);
+            agentPage = userRepository.findByRoleIn(Arrays.asList("AGENT"), pageable);
         } else {
             // search theo fullName
-            agentPage = userRepository.findByRoleAndFullNameContainingIgnoreCase("AGENT", keyword, pageable);
+            agentPage = userRepository.findByRoleInAndFullNameContainingIgnoreCase(Arrays.asList("AGENT"), keyword, pageable);
         }
 
         return agentPage.map(user -> {
@@ -171,10 +173,10 @@ public class UserService {
         Page<User> userPage;
         if (keyword == null || keyword.isEmpty()) {
             // không search → lấy toàn bộ agent
-            userPage = userRepository.findByRole("USER", pageable);
+            userPage = userRepository.findByRoleIn(Arrays.asList("USER", "ADMIN"), pageable);
         } else {
             // search theo fullName
-            userPage = userRepository.findByRoleAndFullNameContainingIgnoreCase("USER", keyword, pageable);
+            userPage = userRepository.findByRoleInAndFullNameContainingIgnoreCase(Arrays.asList("USER", "ADMIN"), keyword, pageable);
         }
 
         return userPage.map(userMapper::toResponse);
@@ -227,6 +229,23 @@ public class UserService {
                 .orElseThrow(() -> BusinessException.userNotFound(id));
 
         userRepository.delete(user);
+    }
+
+    public UserResponse updateUserRole(Long id, String role){
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> BusinessException.userNotFound(id));
+
+        user.setRole(role);
+
+        if (role.equals("AGENT")) {
+            if (!userMetricRepository.existsByUserId(user.getId())) {
+                UserMetric userMetric = new UserMetric();
+                userMetric.setUser(user);
+                userMetricRepository.save(userMetric);
+            }
+        }
+        webSocketBroadcastService.broadcastBlockUserMessage(id, "Bạn được đổi role! Hãy đăng nhập lại");
+        return userMapper.toResponse(userRepository.save(user));
     }
 //
 //

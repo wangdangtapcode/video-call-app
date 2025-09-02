@@ -11,7 +11,8 @@ export default function UserTable({
   page = 0,
   totalPages = 1,
   usersPerPage = 5,
-  onPageChange
+  onPageChange,
+  onRoleChange,
 }) {
   if (isLoading) return <p className="p-4 text-gray-600">Loading users...</p>;
 
@@ -43,6 +44,7 @@ export default function UserTable({
               onUnblock={onUnblock}
               onDelete={onDelete}
               onRowClick={onRowClick}
+              onRoleChange={onRoleChange}
             />
           ))}
 

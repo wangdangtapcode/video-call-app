@@ -5,6 +5,7 @@ import { useEffect } from "react";
 
 export default function AdminLayout() {
     const { user, logout, isLoading, isInitialized, isAuthenticated } = useUser();
+    
     const navigate = useNavigate();
 
     // Redirect to login if not authenticated (only after initialization)

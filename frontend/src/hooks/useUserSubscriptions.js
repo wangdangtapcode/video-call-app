@@ -22,6 +22,8 @@ export const useUserSubscriptions = () => {
 
   const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
 
+  const [message, setMessage] = useState("");
+
   const API_BASE_URL = "http://localhost:8081/api";
 
   
@@ -107,8 +109,8 @@ export const useUserSubscriptions = () => {
 
 
     setIsBlockModalOpen(true);
+    setMessage(data.message);
     handleLogout();
-
   });
 
   const handleLogout = async () => {
@@ -184,6 +186,7 @@ export const useUserSubscriptions = () => {
     setAgents,
 
     isBlockModalOpen,
+    message,
     handleLogout
   };
 };

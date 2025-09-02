@@ -7,7 +7,7 @@ import { useUser } from "../../context/UserContext";
 
 export const LayoutDefault = () => {
   
-  const {isBlockModalOpen} = useUserSubscriptions();
+  const {isBlockModalOpen, message} = useUserSubscriptions();
   const {logout} = useUser();
   const { disconnect } = useWebSocket();
 
@@ -29,7 +29,7 @@ export const LayoutDefault = () => {
             <h2 className="text-xl font-bold mb-4 text-red-600">
               🚨 You have been logged out
             </h2>
-            <p className="mb-6">You have been block by admin.</p>
+            <p className="mb-6">{message}</p>
             <button
               onClick={handleBlockOk}
               className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
