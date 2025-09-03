@@ -1,13 +1,8 @@
 package com.example.backend.service;
 
 import com.example.backend.dto.request.RecordingFilterRequest;
-import com.example.backend.dto.response.RecordResponse;
-import com.example.backend.dto.response.RecordUrlResponse;
-import com.example.backend.dto.response.RecordingDTO;
-import com.example.backend.dto.response.RecordingSegmentDTO;
+import com.example.backend.dto.response.*;
 import com.example.backend.exception.ResourceNotFoundException;
-import com.example.backend.dto.response.RecordingResponse;
-import com.example.backend.dto.response.TimeSeriesPoint;
 import com.example.backend.exception.BusinessException;
 import com.example.backend.mapper.RecordingMapper;
 import com.example.backend.model.Recording;
@@ -65,6 +60,10 @@ public class RecordService {
     private UserMetricsService userMetricsService;
 
     private String bucketName = "openvidurecord";
+
+    public RecordStaticResponse getSummary(){
+        return recordingRepository.getTodaySummary();
+    }
 
 
     public List<TimeSeriesPoint> getCallStats(String interval,

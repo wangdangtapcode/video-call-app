@@ -182,10 +182,10 @@ public class WebSocketBroadcastService {
         messagingTemplate.convertAndSend("/topic/system", data);
     }
 
-    public void broadcastBlockUserMessage(Long id) {
+    public void broadcastBlockUserMessage(Long id, String message) {
         Map<String, Object> data = new HashMap<>();
         data.put("type", "FORCE_LOGOUT");
-        data.put("message", "Bạn bị cưỡng chế đăng xuất");
+        data.put("message", message);
         data.put("timestamp", System.currentTimeMillis());
         messagingTemplate.convertAndSend(
                 "/topic/"+id+"/force-logout",      // queue dành riêng cho user đó

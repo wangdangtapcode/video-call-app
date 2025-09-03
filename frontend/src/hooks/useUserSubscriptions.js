@@ -20,6 +20,10 @@ export const useUserSubscriptions = () => {
   const [users, setUsers] = useState([]);
   const [agents, setAgents] = useState([]);
 
+  const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
+
+  const [message, setMessage] = useState("");
+
   const API_BASE_URL = "http://localhost:8081/api";
 
   
@@ -103,10 +107,28 @@ export const useUserSubscriptions = () => {
     console.log("FORCE_LOGOUT event received:", data);
     console.warn("🚨 FORCE_LOGOUT received!");
 
-    alert("You have been logged out by admin.");
-    // Thoát session
-    logout();
+
+    setIsBlockModalOpen(true);
+    setMessage(data.message);
+    handleLogout();
   });
+
+  const handleLogout = async () => {
+    try {
+      // Call backend logout API với JWT token
+      if (user && token) {
+        console.log('Calling logout API with JWT token...');
+        await axios.post('http://localhost:8081/api/auth/logout', {}, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error during logout API call:', error);
+      // Continue with logout even if API call fails
+    }
+  }
 
   // Agent presence functions (moved from useAgentPresence)
   const loadOnlineAgents = useCallback(async () => {
@@ -162,5 +184,9 @@ export const useUserSubscriptions = () => {
 
     setUsers, 
     setAgents,
+
+    isBlockModalOpen,
+    message,
+    handleLogout
   };
 };

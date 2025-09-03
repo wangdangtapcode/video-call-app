@@ -51,6 +51,8 @@ const AdminStats = () => {
       const res = await axios.get("http://localhost:8081/api/agent/rating-stats");
       const data = res.data;
 
+      delete data["0-1"];
+
       const values = Object.values(data);
       const total = values.reduce((sum, v) => sum + v, 0);
 

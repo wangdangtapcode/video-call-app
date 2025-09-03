@@ -19,6 +19,7 @@ public class RecordingResponse {
     private String agentFullName;
     private Long userId;
     private String userFullName;
+    private Integer rating;
     private String status;
     private Double duration;
     private Long fileSize;

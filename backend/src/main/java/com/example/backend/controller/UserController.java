@@ -1,5 +1,6 @@
 package com.example.backend.controller;
 
+import com.example.backend.dto.request.RoleRequest;
 import com.example.backend.dto.request.UserRequest;
 import com.example.backend.dto.response.AgentResponse;
 import com.example.backend.dto.response.DeleteResponse;
@@ -48,6 +49,12 @@ public class UserController {
     ) {
         Page<UserResponse> users = userService.getAllUser(keyword, page, size, sort);
         return ResponseEntity.ok(users);
+    }
+
+    @PutMapping("/{id}/update-role")
+    public ResponseEntity<UserResponse> updateRole(@PathVariable Long id, @RequestBody RoleRequest roleRequest){
+        String role = roleRequest.getRole();
+        return ResponseEntity.ok(userService.updateUserRole(id, role));
     }
 
     @GetMapping("/{id}")

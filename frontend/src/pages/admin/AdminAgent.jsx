@@ -103,7 +103,11 @@ export default function AdminAgent() {
   const handleBlockAgent = async (agentId) => {
     try {
       await axios.put(`${API_BASE_URL}/user/${agentId}/block`);
-      fetchAgents(searchKeyword, page);
+      setAgents((prev) =>
+        prev.map((u) =>
+          u.id === agentId ? { ...u, active: false, status: "OFFLINE" } : u
+        )
+      );
       fetchTopStats();
     } catch (err) {
       console.error(err);
@@ -115,6 +119,15 @@ export default function AdminAgent() {
       await axios.put(`${API_BASE_URL}/user/${agentId}/unblock`);
       fetchAgents(searchKeyword, page);
       fetchTopStats();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleRoleChange = async (userId, newRole) => {
+    try {
+      await axios.put(`${API_BASE_URL}/user/${userId}/update-role`, { "role": newRole });
+      fetchUsers(searchKeyword, page);
     } catch (err) {
       console.error(err);
     }
@@ -241,6 +254,7 @@ export default function AdminAgent() {
         page={page}
         totalPages={totalPages}
         onPageChange={(newPage) => fetchAgents(searchKeyword, newPage)}
+        onRoleChange={handleRoleChange}
       />
 
       {isModalOpen && (

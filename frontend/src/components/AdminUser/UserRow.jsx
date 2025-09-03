@@ -1,5 +1,21 @@
-// src/components/admin/UserRow.jsx
-export default function UserRow({ user, index, onBlock, onUnblock, onDelete, onRowClick }) {
+import { useState } from "react";
+
+export default function UserRow({ user, index, onBlock, onUnblock, onDelete, onRowClick, onRoleChange }) {
+  const [editingRole, setEditingRole] = useState(false);
+  const [selectedRole, setSelectedRole] = useState(user.role);
+
+  const handleRoleSave = () => {
+    setEditingRole(false);
+    if (selectedRole !== user.role) {
+      if (window.confirm(`Are you sure you want to change role from ${user.role} to ${selectedRole}?`)) {
+        onRoleChange(user.id, selectedRole);
+      } else {
+        // revert lại nếu cancel
+        setSelectedRole(user.role);
+      }
+    }
+  };
+
   const handleBlock = (id) => {
     if (window.confirm("Are you sure you want to block this user?")) {
       onBlock(id);
@@ -40,20 +56,35 @@ export default function UserRow({ user, index, onBlock, onUnblock, onDelete, onR
         </span>
       </td>
 
-      {/* Role */}
+      {/* Role (Editable with confirm) */}
       <td className="p-3 border-b text-center">
-        <span
-          className={`px-2 py-1 rounded-full text-xs font-medium
-            ${
-              user.role === "ADMIN"
-                ? "bg-red-100 text-red-600"
-                : user.role === "AGENT"
-                ? "bg-blue-100 text-blue-600"
-                : "bg-green-100 text-green-600"
-            }`}
-        >
-          {user.role}
-        </span>
+        {editingRole ? (
+          <select
+            value={selectedRole}
+            onChange={(e) => setSelectedRole(e.target.value)}
+            onBlur={handleRoleSave}
+            className="px-2 py-1 rounded-md border text-xs font-medium"
+            autoFocus
+          >
+            <option value="ADMIN">ADMIN</option>
+            <option value="AGENT">AGENT</option>
+            <option value="USER">USER</option>
+          </select>
+        ) : (
+          <span
+            onClick={() => setEditingRole(true)}
+            className={`cursor-pointer px-2 py-1 rounded-full text-xs font-medium
+              ${
+                user.role === "ADMIN"
+                  ? "bg-red-100 text-red-600"
+                  : user.role === "AGENT"
+                  ? "bg-blue-100 text-blue-600"
+                  : "bg-green-100 text-green-600"
+              }`}
+          >
+            {user.role}
+          </span>
+        )}
       </td>
 
       {/* Status */}
@@ -123,5 +154,4 @@ export default function UserRow({ user, index, onBlock, onUnblock, onDelete, onR
       </td>
     </tr>
   );
-
 }

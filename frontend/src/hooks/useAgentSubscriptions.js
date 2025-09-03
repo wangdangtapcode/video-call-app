@@ -31,7 +31,6 @@ export const useAgentSubscriptions = () => {
     setAgentNotifications((prev) => [data, ...prev.slice(0, 49)]);
   });
 
-
   return {
     callAssignments,
     queueUpdates,

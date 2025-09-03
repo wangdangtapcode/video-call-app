@@ -1,5 +1,7 @@
 package com.example.backend.repository;
 
+import com.example.backend.dto.response.AgentStaticResponse;
+import com.example.backend.dto.response.RecordStaticResponse;
 import com.example.backend.model.Recording;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -56,4 +58,9 @@ public interface RecordingRepository extends JpaRepository<Recording,Long> {
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end
     );
+
+    @Query("SELECT new com.example.backend.dto.response.RecordStaticResponse(AVG(r.rating), COUNT(r), SUM(r.duration)) " +
+            "FROM Recording r " +
+            "WHERE FUNCTION('DATE', r.startedAt) = CURRENT_DATE")
+    RecordStaticResponse getTodaySummary();
 }

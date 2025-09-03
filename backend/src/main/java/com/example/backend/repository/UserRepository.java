@@ -26,10 +26,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
 //    Long countByRoleAndStatus(String role, UserStatus status);
 
-    Page<User> findByRole(String role, Pageable pageable);
+    Page<User> findByRoleIn(List<String> roles, Pageable pageable);
 
     Optional<User> findByIdAndRole(Long id, String role);
 
-    Page<User> findByRoleAndFullNameContainingIgnoreCase(String role, String keyword, Pageable pageable);
+    Page<User> findByRoleInAndFullNameContainingIgnoreCase(List<String> roles, String keyword, Pageable pageable);
 
 }

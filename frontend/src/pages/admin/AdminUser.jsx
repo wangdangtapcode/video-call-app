@@ -116,6 +116,15 @@ export default function AdminUser() {
     saveAs(new Blob([wbout], { type: "application/octet-stream" }), "users.xlsx");
   };
 
+  const handleRoleChange = async (userId, newRole) => {
+    try {
+      await axios.put(`${API_BASE_URL}/user/${userId}/update-role`, { "role": newRole });
+      fetchUsers(searchKeyword, page);
+    } catch (err) {
+      console.error(err);
+    }
+  }; 
+
   // Helper format time
   const formatTime = (seconds) => {
     const h = Math.floor(seconds / 3600).toString().padStart(2, "0");
@@ -155,6 +164,7 @@ export default function AdminUser() {
         onBlock={handleBlockUser}
         onUnblock={handleUnBlockUser}
         onDelete={handleDeleteUser}
+        onRoleChange={handleRoleChange}
       />
 
       {isModalOpen && (
