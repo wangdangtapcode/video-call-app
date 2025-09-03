@@ -90,7 +90,7 @@ export const Register = () => {
               htmlFor="fullName"
               className="block text-sm font-medium text-gray-700 mb-2"
             >
-              Email
+              Họ và tên
             </label>
             <input
               type="text"
