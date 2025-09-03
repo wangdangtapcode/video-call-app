@@ -92,10 +92,10 @@ public class UserMetricsService {
     public List<TopEfficiencyAgentsResponse> getTopEfficiencyUsers(int topN) {
         return userMetricRepository.findAllWithCalls().stream()
                 .map(u -> {
-                    Double efficiency = (u.getRating() * u.getTotalCalls()) / (u.getTotalCallTime()/30 + 1);
+                    Double efficiency = (u.getRating() * u.getTotalCalls()) / (u.getTotalCallTime() / 30 + 1);
                     return new TopEfficiencyAgentsResponse(u.getUser().getId(), u.getUser().getFullName(), efficiency);
                 })
-                .sorted((a, b) -> Double.compare((Double) b.getEfficiency(), (Double)a.getEfficiency()))
+                .sorted((a, b) -> Double.compare((Double) b.getEfficiency(), (Double) a.getEfficiency()))
                 .limit(topN)
                 .toList();
     }
@@ -110,6 +110,23 @@ public class UserMetricsService {
                     .orElseThrow(() -> new RuntimeException("User not found: " + userId));
 
             userMetric = new UserMetric();
+            userMetric.setTotalCalls(0);
+            userMetric.setTotalCallTime(0.0);
+            userMetric.setAverageCallDuration(0.0);
+            userMetric.setSuccessfulCalls(0);
+            userMetric.setFailedCalls(0);
+            userMetric.setTotalRatings(0);
+            userMetric.setFiveStarRatings(0);
+            userMetric.setFourStarRatings(0);
+            userMetric.setThreeStarRatings(0);
+            userMetric.setTwoStarRatings(0);
+            userMetric.setOneStarRatings(0);
+            userMetric.setAverageResponseTime(0.0);
+            userMetric.setTotalAcceptedCalls(0);
+            userMetric.setTotalRejectedCalls(0);
+            userMetric.setRating(0.00);
+
+            
             userMetric.setUser(user);
             userMetric = userMetricRepository.save(userMetric);
         }
@@ -123,7 +140,6 @@ public class UserMetricsService {
         // Cập nhật metrics cho agent
         if (agentId != null) {
             UserMetric agentMetric = getOrCreateUserMetric(agentId);
-            agentMetric.setTotalCalls(agentMetric.getTotalCalls() + 1);
             agentMetric.setTotalAcceptedCalls(agentMetric.getTotalAcceptedCalls() + 1);
 
             // Tính toán response time (thời gian từ khi request đến khi completed)
@@ -155,6 +171,10 @@ public class UserMetricsService {
      */
     public void updateCallCompleted(Long agentId, Double callDurationSeconds, boolean isSuccessful) {
         if (agentId != null) {
+
+            if (callDurationSeconds == null) {
+                callDurationSeconds = 0.0;
+            }
             UserMetric agentMetric = getOrCreateUserMetric(agentId);
 
             // Cập nhật tổng thời gian gọi
@@ -172,6 +192,12 @@ public class UserMetricsService {
 
             userMetricRepository.save(agentMetric);
         }
+    }
+
+    public void updateTotalCalls(Long agentId) {
+        UserMetric agentMetric = getOrCreateUserMetric(agentId);
+        agentMetric.setTotalCalls(agentMetric.getTotalCalls() + 1);
+        userMetricRepository.save(agentMetric);
     }
 
     /**

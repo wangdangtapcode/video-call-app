@@ -56,6 +56,12 @@ public class UserMetricsController {
         }
     }
 
+    @PostMapping("/update-total-calls/{userId}")
+    public ResponseEntity<?> updateTotalCalls(@PathVariable Long userId) {
+        userMetricsService.updateTotalCalls(userId);
+        return ResponseEntity.ok(Map.of("message", "Total calls updated successfully", "userId", userId));
+    }
+
     /**
      * Cập nhật rating manually (for testing purposes)
      */

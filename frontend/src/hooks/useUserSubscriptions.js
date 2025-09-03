@@ -26,8 +26,6 @@ export const useUserSubscriptions = () => {
 
   const API_BASE_URL = "http://localhost:8081/api";
 
-  
-
   // Support-related notifications for users
   useRoleChannelListener("request_matched", (data) => {
     console.log("User received support request match:", data);
@@ -40,7 +38,7 @@ export const useUserSubscriptions = () => {
   });
 
   useRoleChannelListener("agent_accepted", (data) => {
-    const {request} = data;
+    const { request } = data;
     console.log("Agent accepted support request:", data);
     setNotifications((prev) => [data, ...prev.slice(0, 49)]);
     // setSupportUpdates((prev) => [data, ...prev]);
@@ -52,8 +50,22 @@ export const useUserSubscriptions = () => {
     //     window.location.href = `/call/${requestId}`;
     //   }
     // }, 2000);
-
   });
+
+  // // Xử lý thông báo permission cancelled
+  // useRoleChannelListener("permission_cancelled", (data) => {
+  //   console.log("Permission cancelled notification:", data);
+  //   setNotifications((prev) => [data, ...prev.slice(0, 49)]);
+
+  //   // Redirect về dashboard với thông báo
+  //   // setTimeout(() => {
+  //   //   if (user?.role === "AGENT") {
+  //   //     window.location.href = "/agent";
+  //   //   } else {
+  //   //     window.location.href = "/";
+  //   //   }
+  //   // }, 2000);
+  // });
 
   useRoleChannelListener("agent_rejected", (data) => {
     console.log("Agent rejected support request:", data);
@@ -103,7 +115,6 @@ export const useUserSubscriptions = () => {
   });
 
   useRoleChannelListener("FORCE_LOGOUT", (data) => {
-
     console.log("FORCE_LOGOUT event received:", data);
     console.warn("🚨 FORCE_LOGOUT received!");
 
@@ -161,8 +172,6 @@ export const useUserSubscriptions = () => {
   //   }
   // }, [user, isAgent, userMetric]);
 
-  
-
   return {
     // User subscription data
     notifications,
@@ -182,7 +191,7 @@ export const useUserSubscriptions = () => {
     users,
     agents,
 
-    setUsers, 
+    setUsers,
     setAgents,
 
     isBlockModalOpen,

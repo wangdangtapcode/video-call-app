@@ -8,7 +8,7 @@ import { SupportRequestModal } from "../../components/SupportRequestModal";
 import axios from "axios";
 
 export const UserDashboard = () => {
-  const { user, logout, isLoading, isInitialized, isAuthenticated, token } =
+  const { user, logout, isLoading, isInitialized, isAuthenticated, token, updateStatus } =
     useUser();
   const { isConnected } = useWebSocket();
   const { addNotification } = useNotification();
@@ -30,11 +30,18 @@ export const UserDashboard = () => {
   const { notifications, loadOnlineAgents, onlineAgents, isLoadingAgents } =
     useUserSubscriptions();
 
+const [isMatched, setIsMatched] = useState(false);
+    
   useEffect(() => {
     if (isInitialized) {
       if (!isAuthenticated) {
         navigate("/login");
-      } else {
+      } else if(user?.role == "AGENT") {
+        navigate("/agent");
+      } else if(user?.role == "ADMIN") {
+        navigate("/admin");
+      }
+       else {
         window.scrollTo(0, 0);
       }
     }
@@ -42,7 +49,7 @@ export const UserDashboard = () => {
 
   const prevNotificationsLength = useRef(0);
 
-  useEffect(() => {
+  useEffect( () => {
     if (notifications.length > prevNotificationsLength.current) {
       const newNotification = notifications[0];
       console.log("New support request update:", newNotification);
@@ -59,7 +66,11 @@ export const UserDashboard = () => {
           autoHide: true,
           duration: 2000,
         });
-
+        const doUpdateStatus  = async () => {
+          await updateStatus("PREPARING");
+        };
+        doUpdateStatus();
+        
         setTimeout(() => {
           navigate(`/permission/${newNotification.request.id}`);
         }, 2000);
@@ -97,7 +108,6 @@ export const UserDashboard = () => {
           message: newNotification.message,
           autoHide: false,
         });
-        
       }
     }
     prevNotificationsLength.current = notifications.length;
@@ -121,7 +131,7 @@ export const UserDashboard = () => {
     if(timerRef.current){
       clearInterval(timerRef.current);
     }
-    
+    setIsMatched(true);
   };
 
   const stopQuickSupportTimer = () => {
@@ -425,7 +435,7 @@ export const UserDashboard = () => {
               <div className="flex items-center justify-center mb-4">
                 <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse mr-2"></div>
                 <span className="text-blue-800 font-medium">
-                  Đang tìm agent...
+                  {isMatched ? "Đã tìm được agent" : "Đang tìm agent..."}
                 </span>
               </div>
 
@@ -439,9 +449,10 @@ export const UserDashboard = () => {
 
               <button
                 onClick={handleCancelQuickSupport}
-                className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200"
+                disabled={isMatched}
+                className={`${isMatched ? "bg-gray-400 cursor-not-allowed text-white" : "bg-red-500 hover:bg-red-600 text-white"} px-6 py-2 rounded-lg font-medium transition-colors duration-200`}
               >
-                Hủy yêu cầu
+                {isMatched ? "Đã tìm được agent" : "Hủy yêu cầu"}
               </button>
             </div>
           </div>
@@ -472,7 +483,7 @@ export const UserDashboard = () => {
               />
             </svg>
             {isQuickSupportActive
-              ? "Đang tìm agent..."
+              ? isMatched ? "Đã tìm được agent" : "Đang tìm agent..."
               : "Yêu cầu hỗ trợ nhanh"}
           </button>
 

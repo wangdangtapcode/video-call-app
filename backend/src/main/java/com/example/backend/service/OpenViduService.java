@@ -159,7 +159,7 @@ public class OpenViduService {
 
     public RecordingDTO startAutoRecording(String sessionId, Long agentId, Long userId, Long requestId) throws  OpenViduHttpException, OpenViduJavaClientException {
 
-
+        userMetricsService.updateTotalCalls(agentId);
         RecordingProperties properties = new RecordingProperties.Builder()
                 .outputMode(Recording.OutputMode.COMPOSED)
                 .recordingLayout(RecordingLayout.BEST_FIT)

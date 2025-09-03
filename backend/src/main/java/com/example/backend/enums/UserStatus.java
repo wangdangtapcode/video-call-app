@@ -4,5 +4,6 @@ public enum UserStatus {
     ONLINE,
     BUSY,
     OFFLINE,
+    PREPARING,
     CALLING,
 }

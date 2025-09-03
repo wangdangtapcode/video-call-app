@@ -46,12 +46,15 @@ public class AuthService {
         User user = userRepository.findByEmailAndPasswordAndIsActive(email, password, true)
                 .orElseThrow(AuthenticationException::invalidCredentials);
 
+        if(!user.getStatus().equals(UserStatus.OFFLINE)) {
+            throw new AuthenticationException("Tài khoản đã đăng nhập");
+        }
         UserMetric userMetric = null;
 
         userService.updateUserStatus(user.getId(), UserStatus.ONLINE);
 
         if ("AGENT".equalsIgnoreCase(user.getRole())) {
-            userMetric = userMetricsService.findByUserId(user.getId());
+            userMetric = userMetricsService.getOrCreateUserMetric(user.getId());
         }
 
         String token = jwtService.generateToken(user.getId(), user.getEmail(), user.getRole());
@@ -97,7 +100,7 @@ public class AuthService {
         userService.updateUserStatus(user.getId(), UserStatus.ONLINE);
 
         if ("AGENT".equalsIgnoreCase(user.getRole())) {
-            userMetric = userMetricsService.findByUserId(user.getId());
+            userMetric = userMetricsService.getOrCreateUserMetric(user.getId());
         }
         String token = jwtService.generateToken(user.getId(), user.getEmail(), user.getRole());
         return new LoginResponse(user, userMetric, token);
@@ -180,5 +183,21 @@ public class AuthService {
         // Tạo user mới (AUTO REGISTER)
         System.out.println("Auto-registering new OAuth2 user: " + email);
         return createOAuth2User(email, fullName, googleId, avatarUrl);
+    }
+
+    public User register(String email, String password, String fullName) {
+        if (userRepository.existsByEmail(email)) {
+            throw new IllegalArgumentException("Email đã tồn tại");
+        }
+        User user = new User();
+        user.setEmail(email);
+        user.setPassword(password);
+        user.setFullName(fullName);
+        user.setRole("USER");
+        user.setActive(true);
+        user.setStatus(UserStatus.OFFLINE);
+        user.setProvider("LOCAL");
+
+        return userRepository.save(user);
     }
 }

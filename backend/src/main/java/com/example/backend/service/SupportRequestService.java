@@ -19,9 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.stream.Collectors;
@@ -49,6 +47,8 @@ public class SupportRequestService {
     private UserMetricsService userMetricsService;
 
     private final Map<Long, ScheduledFuture<?>> timeoutTasks = new ConcurrentHashMap<>();
+
+    private final Map<Long, Set<Long>> matchingHashtagMap = new ConcurrentHashMap<>();
 
     public ResponseEntity<?> getSupportRequest(Long requestId, String authHeader) {
         try {
@@ -167,6 +167,7 @@ public class SupportRequestService {
      */
     private void processQuickSupportMatching(SupportRequest request) {
         // Simulate tìm kiếm agent với multiple attempts
+        Set<Long> matchingHashtagList = matchingHashtagMap.get(request.getUser().getId());
         for (int attempt = 1; attempt <= 3; attempt++) {
             try {
                 // Gửi progress update
@@ -174,7 +175,7 @@ public class SupportRequestService {
                         request,
                         "Đang tìm agent... (Lần thử " + attempt + "/3)");
 
-                User bestAgent = findBestAvailableAgent();
+                User bestAgent = findBestAvailableAgent(matchingHashtagList);
 
                 if (bestAgent != null) {
                     matchWithAgent(request, bestAgent);
@@ -243,7 +244,10 @@ public class SupportRequestService {
     /**
      * Tìm agent tốt nhất cho quick support
      */
-    private User findBestAvailableAgent() {
+    private User findBestAvailableAgent(Set<Long> matchingHashtagList) {
+
+        Set<Long> hashtags = (matchingHashtagList != null) ? matchingHashtagList : Collections.emptySet();
+
         // Lấy tất cả agents online
         List<User> onlineAgents = getOnlineAgents();
 
@@ -253,6 +257,7 @@ public class SupportRequestService {
 
         // Tìm agent ít workload nhất
         return onlineAgents.stream()
+                .filter(agent -> !hashtags.contains(agent.getId()))
                 .filter(agent -> {
                     long activeRequests = supportRequestRepository.countActiveRequestsByAgent(agent);
                     return activeRequests < 3; // Max 3 requests
@@ -324,6 +329,7 @@ public class SupportRequestService {
             request.setResponse(ResponseStatus.ACCEPT);
             request.setCompletedAt(LocalDateTime.now());
 
+            matchingHashtagMap.remove(request.getUser().getId());
             // Notify user that agent accepted
             webSocketBroadcastService.notifyAgentAccepted(request);
 
@@ -335,6 +341,15 @@ public class SupportRequestService {
             request.setStatus(SupportRequestStatus.COMPLETED);
             request.setResponse(ResponseStatus.REJECT);
             request.setCompletedAt(LocalDateTime.now());
+            if (request.getType().equals("quick_support")) {
+                Set<Long> matchingHashtagList = matchingHashtagMap.get(request.getUser().getId());
+
+                if (matchingHashtagList == null) {
+                    matchingHashtagList = new HashSet<>();
+                }
+                matchingHashtagList.add(agentId);
+                matchingHashtagMap.put(request.getUser().getId(), matchingHashtagList);
+            }
 
             // Notify user that agent rejected
             webSocketBroadcastService.notifyAgentRejected(request);
@@ -440,5 +455,45 @@ public class SupportRequestService {
 
     private int getTimeoutForType(String type) {
         return "choose_agent".equals(type) ? 300 : 600; // 5 phút vs 10 phút
+    }
+
+    public void removeUserHashtags(Long userId) {
+        matchingHashtagMap.remove(userId);
+    }
+
+    /**
+     * Cancel permission preparation process
+     */
+    public boolean cancelPermissionPreparation(Long requestId, Long userId, String userRole) {
+        Optional<SupportRequest> requestOpt = supportRequestRepository.findById(requestId);
+
+        if (requestOpt.isEmpty()) {
+            throw new RuntimeException("Request not found");
+        }
+
+        SupportRequest request = requestOpt.get();
+
+        if (request.getStatus() != SupportRequestStatus.COMPLETED) {
+            return false;
+        }
+
+        // Verify ownership (user hoặc agent trong request này)
+        boolean canCancel = request.getUser().getId().equals(userId) ||
+                (request.getAgent() != null && request.getAgent().getId().equals(userId));
+
+        if (!canCancel) {
+            throw new RuntimeException("Unauthorized to cancel this permission preparation");
+        }
+
+        // Notify người còn lại
+        boolean isUser = "USER".equalsIgnoreCase(userRole);
+        Long notifyTo = isUser ? request.getAgent().getId() : request.getUser().getId();
+
+        webSocketBroadcastService.notifyPermissionCancelled(requestId, userId, notifyTo, isUser);
+
+        System.out.println("Permission preparation cancelled for request " + requestId +
+                " by " + (isUser ? "user" : "agent") + " " + userId);
+
+        return true;
     }
 }

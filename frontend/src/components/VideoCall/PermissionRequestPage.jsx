@@ -428,13 +428,13 @@ export const PermissionRequestPage = ({ onPermissionGranted, onCancel }) => {
                   <Users className="w-5 h-5" />
                   <span>Tham gia cuộc gọi</span>
                 </button>
-                {/* 
+                
                 <button
                   onClick={handleCancel}
                   className="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 px-6 rounded-xl font-medium transition-colors duration-200"
                 >
                   Hủy bỏ
-                </button> */}
+                </button>
               </div>
 
               {/* Status Info */}
