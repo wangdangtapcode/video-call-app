@@ -121,14 +121,14 @@ public class UserService {
     }
 
     public TotalResponse getTotalUsers(){
-        Long totalUser = userRepository.countByRoleAndStatus("USER", UserStatus.ONLINE);
+        Long totalUser = userRepository.countByRoleAndStatusNot("USER", UserStatus.OFFLINE);
 
         return new TotalResponse(totalUser);
 
     }
 
     public TotalResponse getTotalAgents(){
-        Long totalUser = userRepository.countByRoleAndStatus("AGENT", UserStatus.ONLINE);
+        Long totalUser = userRepository.countByRoleAndStatusNot("AGENT", UserStatus.OFFLINE);
 
         return new TotalResponse(totalUser);
     }

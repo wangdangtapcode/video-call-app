@@ -378,7 +378,7 @@ public class SupportRequestService {
     }
 
     private long getOnlineAgentsCount() {
-        return userRepository.countByRoleAndStatus("AGENT", UserStatus.ONLINE);
+        return userRepository.countByRoleAndStatusNot("AGENT", UserStatus.ONLINE);
     }
 
     // Helper methods để hỗ trợ frontend timer
