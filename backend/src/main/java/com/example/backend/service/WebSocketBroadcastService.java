@@ -188,9 +188,8 @@ public class WebSocketBroadcastService {
         data.put("message", "Bạn bị cưỡng chế đăng xuất");
         data.put("timestamp", System.currentTimeMillis());
         messagingTemplate.convertAndSend(
-                "/topic/"+id+"/force-logout",      // queue dành riêng cho user đó
-                data
-        );
+                "/topic/" + id + "/force-logout", // queue dành riêng cho user đó
+                data);
         System.out.println("Block user " + id);
     }
 
@@ -269,5 +268,26 @@ public class WebSocketBroadcastService {
 
     }
 
+    /**
+     * Notify khi một bên thoát/hủy trong quá trình preparing
+     */
+    public void notifyPermissionCancelled(Long requestId, Long cancelledBy, Long notifyTo, boolean isUser) {
+        Map<String, Object> notification = new HashMap<>();
+        notification.put("type", "permission_cancelled");
+        notification.put("requestId", requestId);
+        notification.put("cancelledBy", cancelledBy);
+        notification.put("isUserCancelled", isUser);
+        notification.put("message",
+                isUser ? "User đã hủy bỏ quá trình cấp quyền" : "Agent đã hủy bỏ quá trình cấp quyền");
+        notification.put("timestamp", System.currentTimeMillis());
+
+        messagingTemplate.convertAndSendToUser(
+                notifyTo.toString(),
+                "/topic/permission-updates",
+                notification);
+
+        System.out.println("Notified user " + notifyTo + " that permission was cancelled by " +
+                (isUser ? "user" : "agent") + " " + cancelledBy);
+    }
 
 }

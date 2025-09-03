@@ -161,6 +161,11 @@ public class RecordService {
             recording.setDuration(openViduRecording.getDuration());
             recording.setFileSize(openViduRecording.getSize());
             recording.setStatus(RecordingStatus.STOPPED);
+            if(recording.getRating() != null) {
+                boolean isSuccessful = recording.getRating() < 3 ? false : true;
+                userMetricsService.updateCallCompleted(recording.getAgentId(), recording.getDuration(), isSuccessful);
+            }
+
             return recordingRepository.save(recording);
         }
         throw new RuntimeException("Recording not found " + recordingId);
@@ -409,7 +414,9 @@ public class RecordService {
             recording.setFeedback(feedback);
             recordingRepository.save(recording);
             boolean isSuccessful = rating != null && Integer.parseInt(rating) < 3 ? false : true;
-            userMetricsService.updateCallCompleted(recording.getAgentId(), recording.getDuration(), isSuccessful);
+            if(recording.getDuration() != null) {
+                userMetricsService.updateCallCompleted(recording.getAgentId(), recording.getDuration(), isSuccessful);
+            }
             if (recording.getAgentId() != null) {
                 userMetricsService.updateRating(recording.getAgentId(), Integer.parseInt(rating));
             }

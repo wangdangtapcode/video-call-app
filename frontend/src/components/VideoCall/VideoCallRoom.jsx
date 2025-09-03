@@ -126,7 +126,7 @@ export const VideoCallRoom = ({
   // Determine if current user is agent or user
   const isAgent = userRole === "AGENT";
   const otherParticipant = isAgent ? callData?.user : callData?.agent;
-
+  const [isParticipantAgent, setIsParticipantAgent] = useState(false);
 
   const compressImage = (imageData, maxWidth = 800, maxHeight = 600) => {
     return new Promise((resolve) => {

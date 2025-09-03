@@ -80,7 +80,7 @@ public class SupportController {
             response.put("requestId", request.getId());
             response.put("status", request.getStatus().toString());
             response.put("type", request.getType());
-            response.put("estimatedWaitTime", supportRequestService.getEstimatedWaitTime(type, agentId)+"");
+            response.put("estimatedWaitTime", supportRequestService.getEstimatedWaitTime(type, agentId) + "");
             response.put("message", getInitialMessage(type, agentId));
             response.put("timestamp", System.currentTimeMillis());
             response.put("maxWaitTime", getMaxWaitTime(type));
@@ -224,29 +224,57 @@ public class SupportController {
                 return ResponseEntity.ok(Map.of(
                         "message", "Yêu cầu hỗ trợ đã được hủy thành công",
                         "requestId", requestId,
-                        "timestamp", System.currentTimeMillis()
-                ));
+                        "timestamp", System.currentTimeMillis()));
             } else {
                 return ResponseEntity.badRequest().body(Map.of(
                         "message", "Không thể hủy yêu cầu này",
-                        "code", "CANNOT_CANCEL"
-                ));
+                        "code", "CANNOT_CANCEL"));
             }
 
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of(
-                    "message", "Error cancelling request: " + e.getMessage()
-            ));
+                    "message", "Error cancelling request: " + e.getMessage()));
         }
     }
-
-
 
     private String getInitialMessage(String type, Long agentId) {
         if ("choose_agent".equals(type)) {
             return "Đã gửi yêu cầu đến agent được chọn, đang chờ phản hồi...";
         } else {
             return "Đang tìm agent có sẵn để hỗ trợ bạn...";
+        }
+    }
+
+    @PostMapping("/requests/{requestId}/cancel-permission")
+    public ResponseEntity<?> cancelPermission(
+            @PathVariable Long requestId,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        try {
+            String token = jwtService.extractTokenFromHeader(authHeader);
+            if (token == null || jwtService.isTokenExpired(token)) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Invalid or expired token"));
+            }
+
+            Long userId = jwtService.extractUserId(token);
+            String userRole = jwtService.extractRole(token);
+
+            boolean cancelled = supportRequestService.cancelPermissionPreparation(requestId, userId, userRole);
+
+            if (cancelled) {
+                return ResponseEntity.ok(Map.of(
+                        "message", "Đã hủy bỏ quá trình cấp quyền",
+                        "requestId", requestId,
+                        "timestamp", System.currentTimeMillis()));
+            } else {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "message", "Không thể hủy bỏ quá trình này",
+                        "code", "CANNOT_CANCEL_PERMISSION"));
+            }
+
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "message", "Error cancelling permission: " + e.getMessage()));
         }
     }
 

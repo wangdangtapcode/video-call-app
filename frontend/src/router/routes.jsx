@@ -13,6 +13,7 @@ import AdminRecord from "../pages/admin/AdminRecord";
 import AdminAgent from "../pages/admin/AdminAgent";
 import  RecordingManagement from "../pages/agent/RecordingManagement";
 import AdminStats from "../pages/admin/AdminStats";
+import { Register } from "../pages/Register";
 
 
 export const Routers = () => {
@@ -47,6 +48,7 @@ export const Routers = () => {
 
         {/*Login*/}
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
         {/* Not Found */}
         <Route path="*" element={<NotFound />} />
       </Routes>

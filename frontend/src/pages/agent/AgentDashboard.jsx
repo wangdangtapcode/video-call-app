@@ -24,10 +24,13 @@ export const AgentDashboard = () => {
     if (isInitialized) {
       if (!isAuthenticated) {
         navigate("/login");
-      } else if (user?.role !== "AGENT") {
+      } else if (user?.role == "USER") {
         // Redirect non-agents to appropriate dashboard
         navigate("/");
-      } else {
+      } else if (user?.role == "ADMIN") {
+        navigate("/admin");
+      } 
+      else {
         window.scrollTo(0, 0);
       }
     }
@@ -201,7 +204,10 @@ export const AgentDashboard = () => {
         setShowModal(false);
         setCurrentRequest(null);
         // Navigate to permission page first
-        navigate(`/permission/${requestId}`);
+        await updateStatus("PREPARING");
+        setTimeout(() => {
+          navigate(`/permission/${requestId}`);
+        }, 500);
       }
     } catch (error) {
       console.error("Error accepting request:", error);

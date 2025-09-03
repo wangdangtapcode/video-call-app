@@ -30,7 +30,10 @@ export const useAgentSubscriptions = () => {
   useRoleChannelListener("AGENT_NOTIFICATION", (data) => {
     setAgentNotifications((prev) => [data, ...prev.slice(0, 49)]);
   });
-
+  useRoleChannelListener("permission_cancelled", (data) => {
+    console.log("Permission cancelled notification:", data);
+    setAgentNotifications((prev) => [data, ...prev.slice(0, 49)]);
+  });
 
   return {
     callAssignments,
