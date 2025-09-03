@@ -64,8 +64,9 @@ export default function UserRow({ user, index, onBlock, onUnblock, onDelete, onR
             onChange={(e) => {
               const newRole = e.target.value;
               setSelectedRole(newRole);
-              handleRoleSave(newRole); // chỉ gọi ở đây, không setEditingRole(false)
+              handleRoleSave(newRole); // chỉ lưu khi đổi
             }}
+            onBlur={() => setEditingRole(false)} // khi mất focus thì đóng lại
             className="px-2 py-1 rounded-md border text-xs font-medium"
             autoFocus
           >
@@ -89,6 +90,7 @@ export default function UserRow({ user, index, onBlock, onUnblock, onDelete, onR
           </span>
         )}
       </td>
+
 
       {/* Status */}
       <td className="p-3 border-b text-center">
