@@ -82,9 +82,7 @@ export const VideoCallRoom = ({
   const [error, setError] = useState(null);
   const [permissionStatus, setPermissionStatus] = useState("requesting");
   const [retryCount, setRetryCount] = useState(0);
-  const [id_connection, setId_connection] = useState(null);
-  const [recordingData, setRecordingData] = useState(null);
-  const [showRecordingResult, setShowRecordingResult] = useState(false);
+
 
   const [selectedRating, setSelectedRating] = useState(3)
   const [ratingDescription, setRatingDescription] = useState("Hỗ trợ bình thường")
@@ -151,6 +149,7 @@ export const VideoCallRoom = ({
 
   useEffect(() => {
     let mounted = true;
+    let timeoutId = null;
 
     const initializeCall = async () => {
       if (!mounted) return;
@@ -160,8 +159,7 @@ export const VideoCallRoom = ({
         setError(null);
 
         // Kiểm tra kết nối Backend Server trước
-        const serverConnected =
-          await openViduService.current.checkServerConnection();
+        const serverConnected = await openViduService.current.checkServerConnection();
         if (!serverConnected) {
           throw new Error(
             "Không thể kết nối tới Backend Server. Vui lòng kiểm tra server đang chạy."
@@ -170,8 +168,6 @@ export const VideoCallRoom = ({
 
         await initializeSession();
         if (mounted) {
-          startCallDuration();
-          if(isAgent) await startAutoRecording();
         }
       } catch (error) {
         if (mounted) {
@@ -182,28 +178,15 @@ export const VideoCallRoom = ({
       }
     };
 
-    const startAutoRecording = async () => {
-      try {
-        console.log("Starting auto recording for all calls");
-        const autoRecordingResult = await openViduService.current.startAutoRecording(
-          participants[0]?.id || userId, // agentId
-          participants[1]?.id || (isAgent ? userId : null), // userId  
-          requestId
-        );
-        
-        setAutoRecordingData(autoRecordingResult);
-        console.log("Auto recording started:", autoRecordingResult);
-      } catch (error) {
-        console.error("Error starting auto recording:", error);
-        
-      }
-    };
-
-
     initializeCall();
 
     return () => {
       mounted = false;
+      // Xóa timeout khi component unmount
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        console.log("Timeout cleared during cleanup");
+      }
       console.log("VideoCallRoom component unmounting, performing cleanup...");
 
       try {
@@ -229,6 +212,63 @@ export const VideoCallRoom = ({
       }
     };
   }, []);
+
+  useEffect(() => {
+  let timeoutId = null;
+
+  if (participants.length >= 2) {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      console.log("Timeout cleared: Enough participants joined");
+    }
+  }
+
+  return () => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      console.log("Timeout cleared during participants change cleanup");
+    }
+  };
+}, [participants]);
+
+  useEffect(() => {
+  // Chỉ gọi startAutoRecording khi có đủ 2 người tham gia
+  if (isAgent && participants.length === 2 && !autoRecordingData) {
+      const initiateRecording = async () => {
+        try {
+          console.log("Starting auto recording for all calls");
+          const user = participants.find((p) => p.role === "USER");
+          const autoRecordingResult = await openViduService.current.startAutoRecording(
+            userId, // agentId
+            user.id, // userId
+            requestId
+          );
+          setAutoRecordingData(autoRecordingResult);
+          console.log("Auto recording started:", autoRecordingResult);
+        } catch (error) {
+          console.error("Error starting auto recording:", error);
+        }
+      };
+      initiateRecording();
+    }
+  }, [participants, isAgent, autoRecordingData, userId, requestId]);
+
+  const startAutoRecording = async () => {
+        try {
+          console.log("Starting auto recording for all calls");
+          const autoRecordingResult = await openViduService.current.startAutoRecording(
+            participants[0]?.id || userId, // agentId
+            participants[1]?.id || (isAgent ? userId : null), // userId  
+            requestId
+          );
+          
+          setAutoRecordingData(autoRecordingResult);
+          console.log("Auto recording started:", autoRecordingResult);
+        } catch (error) {
+          console.error("Error starting auto recording:", error);
+          
+        }
+  };
   const stopAutoRecording = async () => {
     try {
       if (autoRecordingData) {
@@ -620,6 +660,10 @@ export const VideoCallRoom = ({
             setReceivedImageData(data.imageData);
             setShowReceivedImagePopup(true);
           }
+        case "signal:call-end":
+          console.log(`User ${data.userId} ended the call`);
+          leaveSession();
+        break;
         default:
           console.log("Unknown signal type:", event.type);
       }
@@ -888,6 +932,10 @@ export const VideoCallRoom = ({
         stopAutoRecording();
       }
       console.log("Leaving OpenVidu session and updating user status...");
+      openViduService.current.sendSignal("call-end", {
+        userId,
+        timestamp: Date.now(),
+      });
 
       // Leave OpenVidu session
       openViduService.current.leaveSession();
@@ -1081,11 +1129,6 @@ export const VideoCallRoom = ({
             className={`w-3 h-3 rounded-full ${getStatusColor()} animate-pulse`}
           ></div>
           <span className="text-white font-medium">{getStatusText()}</span>
-
-          <div className="flex items-center space-x-2 text-gray-300">
-            <span>•</span>
-            <span>{formatDuration(callDuration)}</span>
-          </div>
 
           {isRecording && (
             <div className="flex items-center space-x-2 bg-red-600 px-3 py-1 rounded-full">

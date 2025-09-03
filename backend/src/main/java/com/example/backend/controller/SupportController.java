@@ -92,6 +92,7 @@ public class SupportController {
 
         } catch (Exception e) {
             Map<String, String> response = new HashMap<>();
+            e.printStackTrace();
             response.put("message", "Error creating support request: " + e.getMessage());
             return ResponseEntity.badRequest().body(response);
         }
