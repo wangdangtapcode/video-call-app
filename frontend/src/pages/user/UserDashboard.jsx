@@ -280,6 +280,7 @@ export const UserDashboard = () => {
   };
 
   const confirmAgentSelection = async () => {
+    console.log("hello")
     if (!agentToConfirm) return;
 
     try {
@@ -296,6 +297,7 @@ export const UserDashboard = () => {
           },
         }
       );
+      console.log(response.data)
 
       if (response.status === 200) {
         const result = response.data;
