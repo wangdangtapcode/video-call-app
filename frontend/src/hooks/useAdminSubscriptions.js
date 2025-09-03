@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, use } from "react";
 import { useRoleChannelListener } from "./useRoleChannelListener";
 import axios from "axios";
 
@@ -126,7 +126,23 @@ export const useAdminSubscriptions = () => {
     });
 
     useRoleChannelListener("SYSTEM_ANNOUNCEMENT", (data) => {
+        console.log("Log SYSTEM_ANNOUNCEMENT mới:", data);
         addLog("Log SYSTEM_ANNOUNCEMENT mới" );
+    });
+
+    useRoleChannelListener("call_ended", (data) => {
+        console.log("Call ended notification:", data);
+        const {endedBy, isUserEnded, timestamp} = data;
+        const who = isUserEnded ? "User" : "Agent";
+        addLog(`${who} (id: ${endedBy}) đã kết thúc cuộc gọi lúc ${formatTime(timestamp)}` );
+    });
+
+    useRoleChannelListener("permission_cancelled", (data) => {
+        console.log("Permission cancelled notification:", data);
+        const {cancelledBy, isUserCancelled, timestamp} = data;
+
+        const who = isUserCancelled ? "User" : "Agent";
+        addLog(`${who} (id: ${cancelledBy}) đã hủy cuộc gọi lúc ${formatTime(timestamp)}` );
     });
 
     const fetchTotals = useCallback(async () => {

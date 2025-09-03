@@ -286,6 +286,11 @@ public class WebSocketBroadcastService {
                 "/topic/permission-updates",
                 notification);
 
+        messagingTemplate.convertAndSendToUser(
+                "1",
+                "/topic/permission-updates",
+                notification);
+
         System.out.println("Notified user " + notifyTo + " that permission was cancelled by " +
                 (isUser ? "user" : "agent") + " " + cancelledBy);
     }
@@ -313,6 +318,18 @@ public class WebSocketBroadcastService {
         // PermissionRequestPage)
         messagingTemplate.convertAndSendToUser(
                 notifyTo.toString(),
+                "/topic/permission-updates",
+                notification);
+
+        messagingTemplate.convertAndSendToUser(
+                "1",
+                "/topic/call-updates",
+                notification);
+
+        // Gửi tới permission-updates topic (cho người có thể đang ở
+        // PermissionRequestPage)
+        messagingTemplate.convertAndSendToUser(
+                "1",
                 "/topic/permission-updates",
                 notification);
 
