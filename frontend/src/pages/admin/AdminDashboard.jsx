@@ -39,7 +39,7 @@ export const AdminDashboard = () => {
         <KPICard title="Calls Running" value={callCount} color="text-red-600" />
         <KPICard title="Average Rating" value={<StarRating rating={avgRating} />} color="text-indigo-600" />
         <KPICard title="Total Calls" value={totalCalls} color="text-purple-600" />
-        <KPICard title="Total Call Time" value={formatTime(totalCallTime)} color="text-yellow-600" />
+        <KPICard title="Total Call Time" value={formatTime(totalCallTime.toFixed(0))} color="text-yellow-600" />
       </section>
 
       {/* Logs Section */}

@@ -1063,6 +1063,9 @@ export const VideoCallRoom = ({
 
   const leaveSession = async () => {
     try {
+      if(agentRecordingActive && isAgent) {
+        await openViduService.current.stopAgentRecording(recordingSegment.segmentId);
+      }
       if (isAgent){
         stopAutoRecording();
       }
@@ -1328,7 +1331,7 @@ export const VideoCallRoom = ({
           <div className="flex items-center space-x-2">
             <div className="flex items-center space-x-1 text-gray-400">
               <Users className="w-4 h-4" />
-              <span className="text-sm">{participants.length}</span>
+              <span className="text-sm">{subscribers.length+1}</span>
             </div>
 
             <button
