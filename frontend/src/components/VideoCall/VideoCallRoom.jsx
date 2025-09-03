@@ -119,6 +119,7 @@ export const VideoCallRoom = ({
   }
   const callStartTime = useRef(null);
   const durationInterval = useRef(null);
+  const screenShareTrackRef = useRef(null);
 
   const { sendMessage } = useWebSocket();
   // Determine if current user is agent or user
@@ -739,78 +740,131 @@ export const VideoCallRoom = ({
   };
 
   const toggleScreenShare = async () => {
-  try {
-    if (!isScreenSharing) {
-      // Bắt đầu chia sẻ màn hình
-      const screenPublisher = await openViduService.current.startScreenShare(isAudioEnabled);
-      setIsScreenSharing(true);
+    try {
+      if (!isScreenSharing) {
+        // Bắt đầu chia sẻ màn hình
+        const screenPublisher = await openViduService.current.startScreenShare(isAudioEnabled);
+        setIsScreenSharing(true);
 
-      // Gắn luồng screen vào userVideoRef
-      if (userVideoRef.current && screenPublisher) {
-        const videoElement = document.createElement("video");
-        videoElement.autoplay = true;
-        videoElement.playsInline = true;
-        videoElement.muted = true;
-        videoElement.style.width = "100%";
-        videoElement.style.height = "100%";
-        videoElement.style.objectFit = "cover";
+        // Lấy screen track để lắng nghe sự kiện ended
+        const stream = screenPublisher.stream.getMediaStream();
+        const videoTrack = stream.getVideoTracks()[0];
+        screenShareTrackRef.current = videoTrack;
 
-        userVideoRef.current.innerHTML = "";
-        userVideoRef.current.appendChild(videoElement);
-        screenPublisher.addVideoElement(videoElement);
-      }
+        // Lắng nghe sự kiện ended khi user dừng screen share từ trình duyệt
+        videoTrack.addEventListener('ended', async () => {
+          console.log('Screen share stopped by browser');
+          try {
+            // Dừng screen share và quay về camera
+            const cameraPublisher = await openViduService.current.stopScreenShare(isAudioEnabled);
+            setIsScreenSharing(false);
+            screenShareTrackRef.current = null;
 
-      // Gửi signal (như cũ)
-      openViduService.current.sendSignal("screen-share", {
-        userId,
-        screenSharing: true,
-      });
+            // Gắn luồng camera vào userVideoRef
+            if (userVideoRef.current && cameraPublisher) {
+              const videoElement = document.createElement("video");
+              videoElement.autoplay = true;
+              videoElement.playsInline = true;
+              videoElement.muted = true;
+              videoElement.style.width = "100%";
+              videoElement.style.height = "100%";
+              videoElement.style.objectFit = "cover";
 
-      if (isWebSocketConnected) {
-        sendMessage(`/app/call/${requestId}/screen-share`, {
+              userVideoRef.current.innerHTML = "";
+              userVideoRef.current.appendChild(videoElement);
+              cameraPublisher.addVideoElement(videoElement);
+            }
+
+            // Gửi signal để thông báo cho người khác
+            openViduService.current.sendSignal("screen-share", {
+              userId,
+              screenSharing: false,
+            });
+
+            if (isWebSocketConnected) {
+              sendMessage(`/app/call/${requestId}/screen-share`, {
+                userId,
+                screenSharing: false,
+              });
+            }
+          } catch (error) {
+            console.error("Error handling browser screen share stop:", error);
+            setError(`Lỗi khi xử lý dừng chia sẻ màn hình: ${error.message}`);
+          }
+        });
+
+        // Gắn luồng screen vào userVideoRef
+        if (userVideoRef.current && screenPublisher) {
+          const videoElement = document.createElement("video");
+          videoElement.autoplay = true;
+          videoElement.playsInline = true;
+          videoElement.muted = true;
+          videoElement.style.width = "100%";
+          videoElement.style.height = "100%";
+          videoElement.style.objectFit = "cover";
+
+          userVideoRef.current.innerHTML = "";
+          userVideoRef.current.appendChild(videoElement);
+          screenPublisher.addVideoElement(videoElement);
+        }
+
+        // Gửi signal
+        openViduService.current.sendSignal("screen-share", {
           userId,
           screenSharing: true,
         });
-      }
-    } else {
-      // Dừng chia sẻ màn hình
-      const cameraPublisher = await openViduService.current.stopScreenShare(isAudioEnabled);
-      setIsScreenSharing(false);
 
-      // Gắn luồng camera vào userVideoRef
-      if (userVideoRef.current && cameraPublisher) {
-        const videoElement = document.createElement("video");
-        videoElement.autoplay = true;
-        videoElement.playsInline = true;
-        videoElement.muted = true;
-        videoElement.style.width = "100%";
-        videoElement.style.height = "100%";
-        videoElement.style.objectFit = "cover";
+        if (isWebSocketConnected) {
+          sendMessage(`/app/call/${requestId}/screen-share`, {
+            userId,
+            screenSharing: true,
+          });
+        }
+      } else {
+        // Dừng chia sẻ màn hình bằng button
+        const cameraPublisher = await openViduService.current.stopScreenShare(isAudioEnabled);
+        setIsScreenSharing(false);
+        
+        // Clear screen track reference
+        if (screenShareTrackRef.current) {
+          screenShareTrackRef.current.removeEventListener('ended', () => {});
+          screenShareTrackRef.current = null;
+        }
 
-        userVideoRef.current.innerHTML = "";
-        userVideoRef.current.appendChild(videoElement);
-        cameraPublisher.addVideoElement(videoElement);
-      }
+        // Gắn luồng camera vào userVideoRef
+        if (userVideoRef.current && cameraPublisher) {
+          const videoElement = document.createElement("video");
+          videoElement.autoplay = true;
+          videoElement.playsInline = true;
+          videoElement.muted = true;
+          videoElement.style.width = "100%";
+          videoElement.style.height = "100%";
+          videoElement.style.objectFit = "cover";
 
-      // Gửi signal (như cũ)
-      openViduService.current.sendSignal("screen-share", {
-        userId,
-        screenSharing: false,
-      });
+          userVideoRef.current.innerHTML = "";
+          userVideoRef.current.appendChild(videoElement);
+          cameraPublisher.addVideoElement(videoElement);
+        }
 
-      if (isWebSocketConnected) {
-        sendMessage(`/app/call/${requestId}/screen-share`, {
+        // Gửi signal
+        openViduService.current.sendSignal("screen-share", {
           userId,
           screenSharing: false,
         });
+
+        if (isWebSocketConnected) {
+          sendMessage(`/app/call/${requestId}/screen-share`, {
+            userId,
+            screenSharing: false,
+          });
+        }
       }
+    } catch (error) {
+      console.error("Error toggling screen share:", error);
+      setError(`Lỗi khi chuyển đổi chia sẻ màn hình: ${error.message}`);
+      setCallStatus("error");
     }
-  } catch (error) {
-    console.error("Error toggling screen share:", error);
-    setError(`Lỗi khi chuyển đổi chia sẻ màn hình: ${error.message}`);
-    setCallStatus("error");
-  }
-};
+  };
 
   const takeScreenshot = () => {
     if (isAgent) {
