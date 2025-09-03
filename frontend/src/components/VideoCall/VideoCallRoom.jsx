@@ -660,6 +660,7 @@ export const VideoCallRoom = ({
             setReceivedImageData(data.imageData);
             setShowReceivedImagePopup(true);
           }
+          break;
         case "signal:call-end":
           console.log(`User ${data.userId} ended the call`);
           leaveSession();
@@ -741,7 +742,7 @@ export const VideoCallRoom = ({
   try {
     if (!isScreenSharing) {
       // Bắt đầu chia sẻ màn hình
-      const screenPublisher = await openViduService.current.startScreenShare();
+      const screenPublisher = await openViduService.current.startScreenShare(isAudioEnabled);
       setIsScreenSharing(true);
 
       // Gắn luồng screen vào userVideoRef
@@ -773,7 +774,7 @@ export const VideoCallRoom = ({
       }
     } else {
       // Dừng chia sẻ màn hình
-      const cameraPublisher = await openViduService.current.stopScreenShare();
+      const cameraPublisher = await openViduService.current.stopScreenShare(isAudioEnabled);
       setIsScreenSharing(false);
 
       // Gắn luồng camera vào userVideoRef

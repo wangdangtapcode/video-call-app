@@ -328,24 +328,40 @@ public class RecordService {
                 .collect(Collectors.toList());
     }
 
-    public Page<RecordingDTO> getRecordingsForAgent(Long agentId, RecordingFilterRequest filterRequest) {
-        System.out.println("Getting recordings for agent {} with date filter: {} to {}" +
-                agentId+ filterRequest.getStartDate() + filterRequest.getEndDate());
+    public Page<RecordingDTO> getRecordings(Long id, RecordingFilterRequest filterRequest) {
+        System.out.println("Getting recordings for ID " + id +
+                " with date filter: " + filterRequest.getStartDate() + " to " + filterRequest.getEndDate());
 
         Pageable pageable = createPageable(filterRequest);
 
+        // Xác định vai trò của ID (agent hay user)
+        boolean isAgent = recordingRepository.existsByAgentId(id);
+        boolean isUser = !isAgent && recordingRepository.existsByUserId(id);
+
+        if (!isAgent && !isUser) {
+            throw new IllegalArgumentException("ID does not correspond to any agent or user.");
+        }
+
         Page<Recording> recordings;
         if (filterRequest.getStartDate() == null && filterRequest.getEndDate() == null) {
-            // No date filter, fetch all recordings for the agent
-            recordings = recordingRepository.findByAgentId(agentId, pageable);
+            // Không có bộ lọc ngày
+            if (isAgent) {
+                recordings = recordingRepository.findByAgentId(id, pageable);
+            } else {
+                recordings = recordingRepository.findByUserId(id, pageable);
+            }
         } else {
-            // Apply date filter
+            // Áp dụng bộ lọc ngày
             LocalDateTime startDate = filterRequest.getStartDate() != null ?
-                    filterRequest.getStartDate().atStartOfDay() : LocalDateTime.now().minusYears(100); // Fallback for null
+                    filterRequest.getStartDate().atStartOfDay() : LocalDateTime.now().minusYears(100);
             LocalDateTime endDate = filterRequest.getEndDate() != null ?
-                    filterRequest.getEndDate().atTime(LocalTime.MAX) : LocalDateTime.now(); // Fallback for null
+                    filterRequest.getEndDate().atTime(LocalTime.MAX) : LocalDateTime.now();
 
-            recordings = recordingRepository.findByAgentIdAndDateRange(agentId, startDate, endDate, pageable);
+            if (isAgent) {
+                recordings = recordingRepository.findByAgentIdAndDateRange(id, startDate, endDate, pageable);
+            } else {
+                recordings = recordingRepository.findByUserIdAndDateRange(id, startDate, endDate, pageable);
+            }
         }
 
         return recordings.map(this::convertToDTO);

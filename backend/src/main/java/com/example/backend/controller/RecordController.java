@@ -88,13 +88,13 @@ public class RecordController {
 
     @GetMapping("/filter")
     public ResponseEntity<Page<RecordingDTO>> getRecordings(
-            @RequestParam Long agentId,
+            @RequestParam Long id,
             RecordingFilterRequest filterRequest) {
 
         System.out.println("GET /api/recordings - agentId: {}, startDate: {}, endDate: {}" +
-                agentId + filterRequest.getStartDate() + filterRequest.getEndDate());
+                id + filterRequest.getStartDate() + filterRequest.getEndDate());
 
-        Page<RecordingDTO> recordings = recordService.getRecordingsForAgent(agentId, filterRequest);
+        Page<RecordingDTO> recordings = recordService.getRecordings(id, filterRequest);
         return ResponseEntity.ok(recordings);
     }
 
