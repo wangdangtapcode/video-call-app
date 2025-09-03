@@ -4,16 +4,16 @@ export default function UserRow({ user, index, onBlock, onUnblock, onDelete, onR
   const [editingRole, setEditingRole] = useState(false);
   const [selectedRole, setSelectedRole] = useState(user.role);
 
-  const handleRoleSave = () => {
-    setEditingRole(false);
-    if (selectedRole !== user.role) {
-      if (window.confirm(`Are you sure you want to change role from ${user.role} to ${selectedRole}?`)) {
-        onRoleChange(user.id, selectedRole);
+  const handleRoleSave = (newRole) => {
+    if (newRole !== user.role) {
+      if (window.confirm(`Are you sure you want to change role from ${user.role} to ${newRole}?`)) {
+        onRoleChange(user.id, newRole);
       } else {
         // revert lại nếu cancel
         setSelectedRole(user.role);
       }
     }
+    setEditingRole(false); // đóng select sau khi xử lý xong
   };
 
   const handleBlock = (id) => {
@@ -61,8 +61,12 @@ export default function UserRow({ user, index, onBlock, onUnblock, onDelete, onR
         {editingRole ? (
           <select
             value={selectedRole}
-            onChange={(e) => setSelectedRole(e.target.value)}
-            onBlur={handleRoleSave}
+            onChange={(e) => {
+              const newRole = e.target.value;
+              setSelectedRole(newRole);
+              handleRoleSave(newRole); // chỉ lưu khi đổi
+            }}
+            onBlur={() => setEditingRole(false)} // khi mất focus thì đóng lại
             className="px-2 py-1 rounded-md border text-xs font-medium"
             autoFocus
           >
@@ -82,10 +86,11 @@ export default function UserRow({ user, index, onBlock, onUnblock, onDelete, onR
                   : "bg-green-100 text-green-600"
               }`}
           >
-            {user.role}
+            {selectedRole ?? user.role}
           </span>
         )}
       </td>
+
 
       {/* Status */}
       <td className="p-3 border-b text-center">

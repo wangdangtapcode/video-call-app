@@ -40,19 +40,22 @@ export const useAdminSubscriptions = () => {
                 timestamp,
             });
 
-            fetchTotals();
-            addLog(`${fullName} (${userId}) chuyển sang ${status} lúc ${formatTime(timestamp)}`);
-            setUsers((prev) =>
-                prev.map((u) =>
-                    u.id === userId ? { ...u, status: status} : u
-                )
-            );
+            setTimeout(() => {
+                fetchTotals();
+                        addLog(`${fullName} (${userId}) chuyển sang ${status} lúc ${formatTime(timestamp)}`);
+                        setUsers((prev) =>
+                            prev.map((u) =>
+                                u.id === userId ? { ...u, status: status} : u
+                            )
+                        );
 
-            setAgents((prev) =>
-                prev.map((u) =>
-                    u.id === userId ? { ...u, status: status} : u
-                )
-            );  
+                        setAgents((prev) =>
+                            prev.map((u) =>
+                                u.id === userId ? { ...u, status: status} : u
+                            )
+                        );  
+            }, 500);
+            
 
         } catch (error) {
             console.error("Error handling user status change:", error);

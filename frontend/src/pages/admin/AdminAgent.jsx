@@ -127,7 +127,7 @@ export default function AdminAgent() {
   const handleRoleChange = async (userId, newRole) => {
     try {
       await axios.put(`${API_BASE_URL}/user/${userId}/update-role`, { "role": newRole });
-      fetchUsers(searchKeyword, page);
+      fetchAgents(searchKeyword, page);
     } catch (err) {
       console.error(err);
     }
