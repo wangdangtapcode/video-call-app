@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
+import StarRating from "../../components/AdminDashboard/StarRating";
 
 export default function AdminRecord() {
   const [records, setRecords] = useState([]);
@@ -21,6 +22,8 @@ export default function AdminRecord() {
     startDate: "",
     endDate: ""
   });
+
+  const [selectedVideo, setSelectedVideo] = useState(null);
 
   const API_BASE_URL = "http://localhost:8081/api";
 
@@ -183,7 +186,7 @@ export default function AdminRecord() {
         <table className="min-w-full border border-gray-300">
           <thead className="bg-gray-100">
             <tr>
-              {["ID", "Session", "Agent", "User", "Duration (s)", "File", "Started At", "Stopped At"].map(header => (
+              {["ID", "Session", "Agent", "User", "Duration (s)", "Rating", "File", "Started At", "Stopped At"].map(header => (
                 <th key={header} className="px-4 py-2 border-b text-left text-gray-700">{header}</th>
               ))}
             </tr>
@@ -197,8 +200,16 @@ export default function AdminRecord() {
                 <td className="px-4 py-2 border-b">{record.userFullName} (id: {record.userId})</td>
                 <td className="px-4 py-2 border-b">{record.duration}</td>
                 <td className="px-4 py-2 border-b">
+                  <StarRating rating={record.rating} />
+                </td>
+                <td className="px-4 py-2 border-b">
                   {record.s3Url && (
-                    <a href={record.s3Url} target="_blank" className="text-blue-500 underline hover:text-blue-700">View</a>
+                    <button
+                      onClick={() => setSelectedVideo(record.s3Url)}
+                      className="text-blue-500 underline hover:text-blue-700"
+                    >
+                      View
+                    </button>
                   )}
                 </td>
                 <td className="px-4 py-2 border-b">{formatDateTime(record.startedAt)}</td>
@@ -227,6 +238,23 @@ export default function AdminRecord() {
           Next
         </button>
       </div>
+
+      {selectedVideo && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-4 rounded-lg shadow-lg max-w-3xl w-full">
+            <video src={selectedVideo} controls autoPlay className="w-full rounded" />
+            <div className="text-right mt-2">
+              <button
+                onClick={() => setSelectedVideo(null)}
+                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+    
   );
 }

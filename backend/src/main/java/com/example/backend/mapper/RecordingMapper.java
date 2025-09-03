@@ -9,6 +9,7 @@ import org.mapstruct.Mapping;
 public interface RecordingMapper {
 
     @Mapping(source = "status", target = "status")
+    @Mapping(source = "rating", target = "rating")
     @Mapping(target = "agentFullName", ignore = true)
     @Mapping(target = "userFullName", ignore = true)
     RecordingResponse toResponse(Recording recording);
