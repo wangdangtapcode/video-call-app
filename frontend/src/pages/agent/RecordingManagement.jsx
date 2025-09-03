@@ -24,7 +24,7 @@ const RecordingManagement = () => {
             "http://localhost:8081/api/record/filter",
             {
               params: {
-                agentId: user.id,
+                id: user.id,
                 startDate,
                 endDate,
               },

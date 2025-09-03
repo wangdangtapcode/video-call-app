@@ -19,11 +19,24 @@ public interface RecordingRepository extends JpaRepository<Recording,Long> {
     Optional<Recording> findByRecordingId (String recordingId);
     Optional<Recording> findBySessionId(String sessionId);
     Page<Recording> findByAgentId(Long agentId, Pageable pageable);
+    Page<Recording> findByUserId(Long userId, Pageable pageable);
+
+    boolean existsByAgentId(Long agentId);
+
+    boolean existsByUserId(Long userId);
 
     @Query("SELECT r FROM Recording r WHERE r.agentId = :agentId " +
             "AND r.startedAt BETWEEN :startDate AND :endDate")
     Page<Recording> findByAgentIdAndDateRange(
             @Param("agentId") Long agentId,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate,
+            Pageable pageable);
+
+    @Query("SELECT r FROM Recording r WHERE r.userId = :userId " +
+            "AND r.startedAt BETWEEN :startDate AND :endDate")
+    Page<Recording> findByUserIdAndDateRange(
+            @Param("userId") Long userId,
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate,
             Pageable pageable);

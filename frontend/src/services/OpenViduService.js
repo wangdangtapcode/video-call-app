@@ -384,7 +384,7 @@ async publishStream(videoEnabled = true, audioEnabled = true, videoSource = unde
       resolution: "640x480",
       frameRate: 30,
       insertMode: "APPEND",
-      mirror: videoSource !== "screen", // Không mirror cho screen share
+      mirror: false, // Không mirror cho screen share
     };
 
     const ovPublisher = await this.OV.initPublisherAsync(undefined, properties);
@@ -399,13 +399,13 @@ async publishStream(videoEnabled = true, audioEnabled = true, videoSource = unde
 }
 
 // Cập nhật startScreenShare và stopScreenShare để sử dụng unpublish + publish mới
-async startScreenShare() {
+async startScreenShare(isAudioEnabled) {
   try {
     // Unpublish camera hiện tại nếu có
     this.unpublishStream();
 
     // Publish mới với screen
-    const screenPublisher = await this.publishStream(true, true, "screen"); // Giả sử luôn enable audio/video, bạn có thể điều chỉnh
+    const screenPublisher = await this.publishStream(true, isAudioEnabled,"screen"); // Giả sử luôn enable audio/video, bạn có thể điều chỉnh
     return screenPublisher;
   } catch (error) {
     console.error("Error starting screen share:", error);
@@ -413,13 +413,13 @@ async startScreenShare() {
   }
 }
 
-async stopScreenShare() {
+async stopScreenShare(isAudioEnabled) {
   try {
     // Unpublish screen hiện tại
     this.unpublishStream();
 
     // Publish mới với camera
-    const cameraPublisher = await this.publishStream(true, true, undefined); // undefined = camera default
+    const cameraPublisher = await this.publishStream(true, isAudioEnabled, undefined); // undefined = camera default
     return cameraPublisher;
   } catch (error) {
     console.error("Error stopping screen share:", error);
