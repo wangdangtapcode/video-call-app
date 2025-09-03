@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   Video,
@@ -9,8 +9,10 @@ import {
   Users,
 } from "lucide-react";
 import { useUser } from "../../context/UserContext";
+import { useNotification } from "../../context/NotificationContext";
+import { usePermissionUpdates } from "../../hooks/usePermissionUpdates";
 
-export const PermissionRequestPage = ({ onPermissionGranted, onCancel }) => {
+export const PermissionRequestPage = ({ onCancel, onPermissionGranted }) => {
   const { requestId } = useParams();
   const navigate = useNavigate();
   const { user, updateStatus } = useUser();
@@ -22,8 +24,84 @@ export const PermissionRequestPage = ({ onPermissionGranted, onCancel }) => {
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
   const [error, setError] = useState(null);
   const [isRequesting, setIsRequesting] = useState(false);
-
+  const { addNotification } = useNotification();
+  const { permissionNotifications, clearPermissionNotifications } = usePermissionUpdates();
   const videoRef = useRef(null);
+  const prevNotificationsLength = useRef(0);
+  
+  // Modal confirmation states
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState(null);
+  const [confirmationMessage, setConfirmationMessage] = useState("");
+  const [processedNotifications, setProcessedNotifications] = useState(new Set());
+  // Function để show confirmation modal
+  const showConfirmation = useCallback((message, navigationPath) => {
+    setConfirmationMessage(message);
+    setPendingNavigation(navigationPath);
+    setShowConfirmationModal(true);
+  }, []);
+
+  // Function để handle confirmation
+  const handleConfirmNavigation = useCallback(() => {
+    setShowConfirmationModal(false);
+    if (pendingNavigation) {
+      navigate(pendingNavigation);
+    }
+  }, [pendingNavigation, navigate]);
+
+
+
+  useEffect(() => {
+    if (permissionNotifications.length > 0) {
+      const newNotification = permissionNotifications[0];
+      
+      // Tạo unique key cho notification để tránh xử lý trùng lặp
+      const notificationKey = `${newNotification?.requestId}-${newNotification?.cancelledBy || newNotification?.endedBy}-${newNotification?.timestamp}`;
+      
+            // Chỉ xử lý nếu chưa được xử lý trước đó
+      if (!processedNotifications.has(notificationKey) && 
+          (newNotification?.type === "permission_cancelled" || newNotification?.type === "call_ended")) {
+        console.log("New permission update:", newNotification);
+
+        // Đánh dấu notification đã được xử lý
+        setProcessedNotifications(prev => new Set([...prev, notificationKey]));
+
+        let message = "";
+        if (newNotification?.type === "permission_cancelled") {
+          const isUserCancelled = newNotification?.isUserCancelled;
+          message = isUserCancelled
+            ? "User đã hủy bỏ quá trình chuẩn bị cuộc gọi. Bạn sẽ được chuyển về dashboard."
+            : "Agent đã hủy bỏ quá trình chuẩn bị cuộc gọi. Bạn sẽ được chuyển về dashboard.";
+        } else if (newNotification?.type === "call_ended") {
+          const isUserEnded = newNotification?.isUserEnded;
+          message = isUserEnded
+            ? "User đã rời khỏi cuộc gọi trong khi bạn đang chuẩn bị. Quá trình chuẩn bị sẽ được hủy bỏ."
+            : "Agent đã rời khỏi cuộc gọi trong khi bạn đang chuẩn bị. Quá trình chuẩn bị sẽ được hủy bỏ.";
+        }
+
+        const navigationPath = user?.role === "AGENT" ? "/agent" : "/";
+
+        // Update status một lần duy nhất
+        const doUpdateStatus = async () => {
+          try {
+            await updateStatus("ONLINE");
+          } catch (error) {
+            console.error("Error updating status:", error);
+          }
+        };
+        doUpdateStatus();
+
+        // Show confirmation modal
+        showConfirmation(message, navigationPath);
+
+        // Clear notifications sau khi xử lý để tránh re-trigger
+        setTimeout(() => {
+          clearPermissionNotifications();
+        }, 100);
+      } 
+    }
+  }, [permissionNotifications, user, processedNotifications, updateStatus, showConfirmation, clearPermissionNotifications]);
+
 
   useEffect(() => {
     // Update video element when stream changes
@@ -184,8 +262,40 @@ export const PermissionRequestPage = ({ onPermissionGranted, onCancel }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="max-w-6xl w-full bg-white rounded-2xl overflow-hidden">
+    <>
+      {/* Confirmation Modal */}
+      {showConfirmationModal && (
+        <div className="fixed inset-0 bg-black/50  flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-3">
+                <AlertTriangle className="w-6 h-6 text-orange-500" />
+                <h3 className="text-lg font-semibold text-gray-800">
+                  Thông báo
+                </h3>
+              </div>
+            </div>
+            <div className="mb-6">
+              <p className="text-gray-600 leading-relaxed">
+                {confirmationMessage}
+              </p>
+            </div>
+            
+            <div className="flex space-x-3">
+              <button
+                onClick={handleConfirmNavigation}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 px-4 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center space-x-2"
+              >
+                
+                <span>OK</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="max-w-6xl w-full bg-white rounded-2xl overflow-hidden">
         {/* Main Content */}
         <div className="flex flex-col lg:flex-row min-h-96">
           {/* Left Side - Video Preview */}
@@ -454,5 +564,6 @@ export const PermissionRequestPage = ({ onPermissionGranted, onCancel }) => {
         </div>
       </div>
     </div>
+    </>
   );
 };

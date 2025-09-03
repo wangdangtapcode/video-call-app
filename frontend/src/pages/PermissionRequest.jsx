@@ -1,38 +1,42 @@
 import React, { useEffect } from "react";
 import { PermissionRequestPage } from "../components/VideoCall/PermissionRequestPage";
 import { useUser } from "../context/UserContext";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
-import { useUserSubscriptions } from "../hooks/useUserSubscriptions";
-import { useNotification } from "../context/NotificationContext";
-
+import { usePermissionUpdates } from "../hooks/usePermissionUpdates";
 export const PermissionRequest = () => {
-  // const { requestId } = useParams();
-  // const { updateStatus, user, token } = useUser();
-  // const { addNotification } = useNotification();
-  // const {notifications} = useUserSubscriptions();
-  // // Xử lý khi user hủy bỏ
-  // const onCancel = async () => {
-  //   try {
-  //     // Gửi cancel permission request tới server
-  //     await axios.post(
-  //       `http://localhost:8081/api/support/requests/${requestId}/cancel-permission`,
-  //       {},
-  //       {
-  //         headers: {
-  //           Authorization: `Bearer ${token}`
-  //         }
-  //       }
-  //     );
+  const { requestId } = useParams();
+  const { updateStatus, user, token } = useUser();
+  const { permissionNotifications } = usePermissionUpdates();
+  const navigate = useNavigate();
+  // Xử lý khi user hủy bỏ
+  const onCancel = async () => {
+    try {
+      // Gửi cancel permission request tới server
+      await axios.post(
+        `http://localhost:8081/api/support/requests/${requestId}/cancel-permission`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
       
-  //     // Cập nhật status về ONLINE
-  //     await updateStatus("ONLINE");
-  //   } catch (error) {
-  //     console.error("Error cancelling permission:", error);
-  //     // Vẫn cập nhật status về ONLINE ngay cả khi có lỗi
-  //     await updateStatus("ONLINE");
-  //   }
-  // };
+      // Cập nhật status về ONLINE
+      await updateStatus("ONLINE");
+
+      if(user?.role === "AGENT") {
+        navigate("/agent");
+      } else {
+        navigate("/");
+      }
+    } catch (error) {
+      console.error("Error cancelling permission:", error);
+      // Vẫn cập nhật status về ONLINE ngay cả khi có lỗi
+      await updateStatus("ONLINE");
+    }
+  };
 
   // Xử lý khi user thoát tab/đóng browser
   // useEffect(() => {
@@ -78,5 +82,5 @@ export const PermissionRequest = () => {
   //   };
   // }, [requestId, token]);
 
-  return <PermissionRequestPage  />;
+     return <PermissionRequestPage onCancel={onCancel} />;
 };

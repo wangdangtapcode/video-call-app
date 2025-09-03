@@ -290,4 +290,34 @@ public class WebSocketBroadcastService {
                 (isUser ? "user" : "agent") + " " + cancelledBy);
     }
 
+    /**
+     * Notify khi một bên rời cuộc gọi (call ended)
+     */
+    public void notifyCallEnded(Long requestId, Long endedBy, Long notifyTo, boolean isUser) {
+        Map<String, Object> notification = new HashMap<>();
+        notification.put("type", "call_ended");
+        notification.put("requestId", requestId);
+        notification.put("endedBy", endedBy);
+        notification.put("isUserEnded", isUser);
+        notification.put("message",
+                isUser ? "User đã rời khỏi cuộc gọi" : "Agent đã rời khỏi cuộc gọi");
+        notification.put("timestamp", System.currentTimeMillis());
+
+        // Gửi tới call-updates topic (cho người trong VideoCallRoom)
+        messagingTemplate.convertAndSendToUser(
+                notifyTo.toString(),
+                "/topic/call-updates",
+                notification);
+
+        // Gửi tới permission-updates topic (cho người có thể đang ở
+        // PermissionRequestPage)
+        messagingTemplate.convertAndSendToUser(
+                notifyTo.toString(),
+                "/topic/permission-updates",
+                notification);
+
+        System.out.println("Notified user " + notifyTo + " that call was ended by " +
+                (isUser ? "user" : "agent") + " " + endedBy + " on both call-updates and permission-updates topics");
+    }
+
 }

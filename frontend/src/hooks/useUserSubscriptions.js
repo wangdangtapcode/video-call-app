@@ -52,20 +52,14 @@ export const useUserSubscriptions = () => {
     // }, 2000);
   });
 
-  // // Xử lý thông báo permission cancelled
-  // useRoleChannelListener("permission_cancelled", (data) => {
-  //   console.log("Permission cancelled notification:", data);
-  //   setNotifications((prev) => [data, ...prev.slice(0, 49)]);
+  // Xử lý thông báo permission cancelled
+  useRoleChannelListener("permission_cancelled", (data) => {
+    console.log("Permission cancelled notification:", data);
+    setNotifications((prev) => [data, ...prev.slice(0, 49)]);
 
-  //   // Redirect về dashboard với thông báo
-  //   // setTimeout(() => {
-  //   //   if (user?.role === "AGENT") {
-  //   //     window.location.href = "/agent";
-  //   //   } else {
-  //   //     window.location.href = "/";
-  //   //   }
-  //   // }, 2000);
-  // });
+    // Không auto redirect nữa, để component PermissionRequestPage xử lý
+    // User sẽ phải xác nhận trong modal trước khi navigate
+  });
 
   useRoleChannelListener("agent_rejected", (data) => {
     console.log("Agent rejected support request:", data);
@@ -118,7 +112,6 @@ export const useUserSubscriptions = () => {
     console.log("FORCE_LOGOUT event received:", data);
     console.warn("🚨 FORCE_LOGOUT received!");
 
-
     setIsBlockModalOpen(true);
     setMessage(data.message);
     handleLogout();
@@ -128,18 +121,22 @@ export const useUserSubscriptions = () => {
     try {
       // Call backend logout API với JWT token
       if (user && token) {
-        console.log('Calling logout API with JWT token...');
-        await axios.post('http://localhost:8081/api/auth/logout', {}, {
-          headers: {
-            'Authorization': `Bearer ${token}`
+        console.log("Calling logout API with JWT token...");
+        await axios.post(
+          "http://localhost:8081/api/auth/logout",
+          {},
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
           }
-        });
+        );
       }
     } catch (error) {
-      console.error('Error during logout API call:', error);
+      console.error("Error during logout API call:", error);
       // Continue with logout even if API call fails
     }
-  }
+  };
 
   // Agent presence functions (moved from useAgentPresence)
   const loadOnlineAgents = useCallback(async () => {
@@ -196,6 +193,6 @@ export const useUserSubscriptions = () => {
 
     isBlockModalOpen,
     message,
-    handleLogout
+    handleLogout,
   };
 };

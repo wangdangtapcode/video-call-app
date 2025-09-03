@@ -42,7 +42,7 @@ export const WebSocketProvider = ({ children }) => {
   const MAX_RECONNECT_ATTEMPTS = 5;
 
   const getRoleChannels = useCallback((role, userId) => {
-    const baseChannels = [`/user/${userId}/topic/support-updates`, `/topic/${userId}/permission-updates`];
+    const baseChannels = [`/user/${userId}/topic/support-updates`, `/user/${userId}/topic/permission-updates`, `/user/${userId}/topic/call-updates`];
 
     switch (role) {
       case "USER":

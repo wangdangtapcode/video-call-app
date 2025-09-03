@@ -26,6 +26,10 @@ import { useWebSocket } from "../../context/WebSocketContext";
 import OpenViduService from "../../services/OpenViduService";
 import { useUser } from "../../context/UserContext";
 import ImageEditor from "../Screenshot/ImageEditor";
+import { usePermissionUpdates } from "../../hooks/usePermissionUpdates";
+import { useCallUpdates } from "../../hooks/useCallUpdates";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
 import { p } from "framer-motion/client";
 
 export const VideoCallRoom = ({
@@ -83,10 +87,20 @@ export const VideoCallRoom = ({
   const [permissionStatus, setPermissionStatus] = useState("requesting");
   const [retryCount, setRetryCount] = useState(0);
 
+  // Modal confirmation states 
+  const [showPermissionCancelledModal, setShowPermissionCancelledModal] = useState(false);
+  const [permissionCancelledMessage, setPermissionCancelledMessage] = useState("");
+  const [showCallEndedModal, setShowCallEndedModal] = useState(false);
+  const [callEndedMessage, setCallEndedMessage] = useState("");
+  const { permissionNotifications, clearPermissionNotifications } =
+    usePermissionUpdates();
+  const { callNotifications, clearCallNotifications } = useCallUpdates();
+  const { user, token } = useUser();
 
-  const [selectedRating, setSelectedRating] = useState(3)
-  const [ratingDescription, setRatingDescription] = useState("Hỗ trợ bình thường")
-  const [feedbackText, setFeedbackText] = useState("")
+  const [selectedRating, setSelectedRating] = useState(3);
+  const [ratingDescription, setRatingDescription] =
+    useState("Hỗ trợ bình thường");
+  const [feedbackText, setFeedbackText] = useState("");
 
   // State cho ảnh
   const [screenshotData, setScreenshotData] = useState(null);
@@ -101,7 +115,7 @@ export const VideoCallRoom = ({
   const [sentImages, setSentImages] = useState([]); // Danh sách ảnh đã gửi (agent)
   const [receivedImages, setReceivedImages] = useState([]); // Danh sách ảnh đã nhận (user)
   const [showImagesPanel, setShowImagesPanel] = useState(false); // Panel danh sách ảnh
-  
+
   //State cho segment
   const [autoRecordingData, setAutoRecordingData] = useState(null);
   const [agentRecordingActive, setAgentRecordingActive] = useState(false);
@@ -121,11 +135,52 @@ export const VideoCallRoom = ({
   const durationInterval = useRef(null);
   const screenShareTrackRef = useRef(null);
 
+  // Handle permission cancelled notifications
+  useEffect(() => {
+    if (permissionNotifications.length > 0) {
+      const notification = permissionNotifications[0];
+
+              if (notification?.type === "permission_cancelled") {
+          const isUserCancelled = notification?.isUserCancelled;
+          const message = isUserCancelled
+            ? "User đã hủy bỏ cuộc gọi từ trang chuẩn bị. Cuộc gọi sẽ kết thúc."
+            : "Agent đã hủy bỏ cuộc gọi từ trang chuẩn bị. Cuộc gọi sẽ kết thúc.";
+
+          setPermissionCancelledMessage(message);
+          setShowPermissionCancelledModal(true);
+
+          // Clear notifications
+          clearPermissionNotifications();
+        }
+    }
+  }, [permissionNotifications, clearPermissionNotifications]);
+
+  // Handle call ended notifications
+  useEffect(() => {
+    if (callNotifications.length > 0) {
+      const notification = callNotifications[0];
+
+              if (notification?.type === "call_ended") {
+          const isUserEnded = notification?.isUserEnded;
+          const message = isUserEnded
+            ? "User đã rời khỏi cuộc gọi. Cuộc gọi sẽ kết thúc."
+            : "Agent đã rời khỏi cuộc gọi. Cuộc gọi sẽ kết thúc.";
+
+          setCallEndedMessage(message);
+          setShowCallEndedModal(true);
+
+          // Clear notifications
+          clearCallNotifications();
+        }
+    }
+  }, [callNotifications, clearCallNotifications]);
+
   const { sendMessage } = useWebSocket();
+
   // Determine if current user is agent or user
   const isAgent = userRole === "AGENT";
   const otherParticipant = isAgent ? callData?.user : callData?.agent;
-  const [isParticipantAgent, setIsParticipantAgent] = useState(false);
+  const [isParticipantInRoom, setIsParticipantInRoom] = useState(false);
 
   const compressImage = (imageData, maxWidth = 800, maxHeight = 600) => {
     return new Promise((resolve) => {
@@ -179,10 +234,31 @@ export const VideoCallRoom = ({
       }
     };
 
+    // // Handle beforeunload để gửi notification khi đóng tab
+    // const handleBeforeUnload = async (event) => {
+    //   try {
+    //     // Sử dụng sendBeacon để đảm bảo request được gửi ngay cả khi thoát tab
+    //     const data = JSON.stringify({});
+    //     navigator.sendBeacon(
+    //       `http://localhost:8081/api/support/requests/${requestId}/end-call`,
+    //       data
+    //     );
+    //   } catch (error) {
+    //     console.error("Error sending end call beacon:", error);
+    //   }
+    // };
+
     initializeCall();
+
+    // // Thêm event listener cho beforeunload
+    // window.addEventListener("beforeunload", handleBeforeUnload);
 
     return () => {
       mounted = false;
+
+      // // Remove event listener
+      // window.removeEventListener("beforeunload", handleBeforeUnload);
+
       // Xóa timeout khi component unmount
       if (timeoutId) {
         clearTimeout(timeoutId);
@@ -215,26 +291,26 @@ export const VideoCallRoom = ({
   }, []);
 
   useEffect(() => {
-  let timeoutId = null;
+    let timeoutId = null;
 
-  if (participants.length >= 2) {
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-      console.log("Timeout cleared: Enough participants joined");
+    if (participants.length >= 2) {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        console.log("Timeout cleared: Enough participants joined");
+      }
     }
-  }
 
-  return () => {
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-      console.log("Timeout cleared during participants change cleanup");
-    }
-  };
-}, [participants]);
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        console.log("Timeout cleared during participants change cleanup");
+      }
+    };
+  }, [participants]);
 
   useEffect(() => {
-  // Chỉ gọi startAutoRecording khi có đủ 2 người tham gia
-  if (isAgent && participants.length === 2 && !autoRecordingData) {
+    // Chỉ gọi startAutoRecording khi có đủ 2 người tham gia
+    if (isAgent && participants.length === 2 && !autoRecordingData) {
       const initiateRecording = async () => {
         try {
           console.log("Starting auto recording for all calls");
@@ -327,6 +403,9 @@ export const VideoCallRoom = ({
           console.log("Stream created:", event);
           setSubscribers((prev) => [...prev, subscriber]);
           setCallStatus("connected");
+          
+          // Set participant in room khi có người khác tham gia
+          setIsParticipantInRoom(true);
 
           // Update participants
           try {
@@ -452,6 +531,7 @@ export const VideoCallRoom = ({
           }
           setParticipants([]);
           setSubscribers([]);
+          // setIsParticipantInRoom(false);
         },
 
         onConnectionCreated: (event) => {
@@ -662,10 +742,10 @@ export const VideoCallRoom = ({
             setShowReceivedImagePopup(true);
           }
           break;
-        case "signal:call-end":
-          console.log(`User ${data.userId} ended the call`);
-          leaveSession();
-        break;
+        // case "signal:call-end":
+        //   console.log(`User ${data.userId} ended the call`);
+        //   leaveSession();
+        //   break;
         default:
           console.log("Unknown signal type:", event.type);
       }
@@ -986,11 +1066,13 @@ export const VideoCallRoom = ({
       if (isAgent){
         stopAutoRecording();
       }
-      console.log("Leaving OpenVidu session and updating user status...");
-      openViduService.current.sendSignal("call-end", {
-        userId,
-        timestamp: Date.now(),
-      });
+              console.log("Leaving OpenVidu session and updating user status...");
+        
+        // Gửi OpenVidu signal để notify thông qua OpenVidu (fallback)
+        openViduService.current.sendSignal("call-end", {
+          userId,
+          timestamp: Date.now(),
+        });
 
       // Leave OpenVidu session
       openViduService.current.leaveSession();
@@ -1137,6 +1219,49 @@ export const VideoCallRoom = ({
     setSelectedRating(rating)
     setRatingDescription(getRatingDescription(rating))
   }
+
+  // Handle confirmation when other participant cancelled from permission page
+  const handlePermissionCancelledConfirmation = () => {
+    setShowPermissionCancelledModal(false);
+    onCallEnd(); // End the call and navigate back
+  };
+
+  // Handle confirmation when other participant ended the call
+  const handleCallEndedConfirmation = () => {
+    setShowCallEndedModal(false);
+    handleLeaveCall(true); // Just navigate back without additional cleanup
+  };
+  const handleLeaveCall = async (isReceiver = false) => {
+    console.log("Leave call button clicked");
+    try {
+      // Gửi notification tới server TRƯỚC khi leave session
+      if(isReceiver === false) {
+        await axios.post(
+          `http://localhost:8081/api/support/requests/${requestId}/end-call`,
+          {},
+          {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        );
+      }
+
+      // Then leave the session and cleanup
+      await leaveSession();
+      
+
+      // Small delay to ensure cleanup completes
+      // setTimeout(() => {
+      //   console.log("Calling onCallEnd after leaving session");
+      //   onCallEnd();
+      // }, 500);
+    } catch (error) {
+      console.error("Error during leave call process:", error);
+      // Still call onCallEnd even if there's an error
+      onCallEnd();
+    }
+  };
   // Permission denied UI
   if (permissionStatus === "denied") {
     return (
@@ -1492,23 +1617,7 @@ export const VideoCallRoom = ({
           </button>
           {/* Leave Call */}
           <button
-            onClick={async () => {
-              console.log("Leave call button clicked");
-              try {
-                // First leave the session and cleanup
-                await leaveSession();
-
-                // Small delay to ensure cleanup completes
-                // setTimeout(() => {
-                //   console.log("Calling onCallEnd after leaving session");
-                //   onCallEnd();
-                // }, 500);
-              } catch (error) {
-                console.error("Error during leave call process:", error);
-                // Still call onCallEnd even if there's an error
-                onCallEnd();
-              }
-            }}
+            onClick={() => handleLeaveCall(false)}
             className="p-4 rounded-full bg-red-600 text-white hover:bg-red-700 transition-all duration-200 ml-8"
             title="Rời cuộc gọi"
           >
@@ -1679,7 +1788,7 @@ export const VideoCallRoom = ({
             <h2 className="text-3xl font-bold mb-2 bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
               Cuộc gọi đã kết thúc
             </h2>
-            {!isAgent && (
+            {!isAgent && isParticipantInRoom && (
               <div className="space-y-6">
                 {/* Rating Section */}
                 <div className="text-left">
@@ -1738,7 +1847,8 @@ export const VideoCallRoom = ({
                   onCallEnd()
                 } else {
                   console.log("Calling onCallEnd with rating and feedback" + selectedRating + " - " + feedbackText + " for session " + sessionId);
-                  onCallEnd(sessionId, selectedRating, feedbackText)
+                  if(isParticipantInRoom) onCallEnd(sessionId, selectedRating, feedbackText)
+                  else onCallEnd()
                 }
               }}
               className="group mt-8 w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-8 py-4 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl hover:shadow-blue-500/25 transform hover:scale-[1.02] active:scale-[0.98]"
@@ -1826,6 +1936,68 @@ export const VideoCallRoom = ({
             setShowScreenshotPreview(true);
           }}
         />
+      )}
+
+      {/* Modal thông báo khi participant khác cancel từ permission page */}
+      {showPermissionCancelledModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl">
+            <div className="flex items-center justify-center mb-4">
+              <div className="flex items-center space-x-3">
+                <AlertTriangle className="w-6 h-6 text-orange-500" />
+                <h3 className="text-lg font-semibold text-gray-800">
+                  Cuộc gọi bị hủy
+                </h3>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <p className="text-gray-600 leading-relaxed text-center">
+                {permissionCancelledMessage}
+              </p>
+            </div>
+
+            <div className="flex justify-center">
+              <button
+                onClick={handlePermissionCancelledConfirmation}
+                className="bg-blue-600 hover:bg-blue-700 text-white py-2.5 px-6 rounded-lg font-medium transition-colors duration-200"
+              >
+                Đã hiểu
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal thông báo khi participant khác rời cuộc gọi */}
+      {showCallEndedModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl">
+            <div className="flex items-center justify-center mb-4">
+              <div className="flex items-center space-x-3">
+                <AlertTriangle className="w-6 h-6 text-red-500" />
+                <h3 className="text-lg font-semibold text-gray-800">
+                  Người tham gia đã rời
+                </h3>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <p className="text-gray-600 leading-relaxed text-center">
+                {callEndedMessage}
+              </p>
+            </div>
+
+            <div className="flex justify-center">
+              <button
+                onClick={handleCallEndedConfirmation}
+                className="bg-red-600 hover:bg-red-700 text-white py-2.5 px-6 rounded-lg font-medium transition-colors duration-200"
+              >
+                Đã hiểu
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
