@@ -496,4 +496,41 @@ public class SupportRequestService {
 
         return true;
     }
+
+    /**
+     * End call và notify người còn lại
+     */
+    public boolean endCall(Long requestId, Long userId, String userRole) {
+        Optional<SupportRequest> requestOpt = supportRequestRepository.findById(requestId);
+
+        if (requestOpt.isEmpty()) {
+            throw new RuntimeException("Request not found");
+        }
+
+        SupportRequest request = requestOpt.get();
+
+        // Chỉ có thể end call khi đang ở trạng thái COMPLETED (đang trong call)
+        if (request.getStatus() != SupportRequestStatus.COMPLETED) {
+            return false;
+        }
+
+        // Verify ownership (user hoặc agent trong request này)
+        boolean canEnd = request.getUser().getId().equals(userId) ||
+                (request.getAgent() != null && request.getAgent().getId().equals(userId));
+
+        if (!canEnd) {
+            throw new RuntimeException("Unauthorized to end this call");
+        }
+
+        // Notify người còn lại
+        boolean isUser = "USER".equalsIgnoreCase(userRole);
+        Long notifyTo = isUser ? request.getAgent().getId() : request.getUser().getId();
+
+        webSocketBroadcastService.notifyCallEnded(requestId, userId, notifyTo, isUser);
+
+        System.out.println("Call ended for request " + requestId +
+                " by " + (isUser ? "user" : "agent") + " " + userId);
+
+        return true;
+    }
 }

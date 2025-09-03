@@ -91,6 +91,8 @@ export const VideoCall = () => {
         });
       }
 
+ 
+
       // Update user status to ONLINE to prevent unwanted re-renders
       await updateStatus("ONLINE");
     } catch (error) {

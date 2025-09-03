@@ -279,6 +279,39 @@ public class SupportController {
         }
     }
 
+    @PostMapping("/requests/{requestId}/end-call")
+    public ResponseEntity<?> endCall(
+            @PathVariable Long requestId,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        try {
+            String token = jwtService.extractTokenFromHeader(authHeader);
+            if (token == null || jwtService.isTokenExpired(token)) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Invalid or expired token"));
+            }
+
+            Long userId = jwtService.extractUserId(token);
+            String userRole = jwtService.extractRole(token);
+
+            boolean ended = supportRequestService.endCall(requestId, userId, userRole);
+
+            if (ended) {
+                return ResponseEntity.ok(Map.of(
+                        "message", "Cuộc gọi đã kết thúc",
+                        "requestId", requestId,
+                        "timestamp", System.currentTimeMillis()));
+            } else {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "message", "Không thể kết thúc cuộc gọi này",
+                        "code", "CANNOT_END_CALL"));
+            }
+
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "message", "Error ending call: " + e.getMessage()));
+        }
+    }
+
     private int getMaxWaitTime(String type) {
         // Thời gian tối đa trước khi timeout (giây)
         if ("choose_agent".equals(type)) {

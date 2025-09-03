@@ -4,14 +4,11 @@ import axios from "axios";
 import { useUser } from "../context/UserContext";
 
 export const useAgentSubscriptions = () => {
-
   const { user, isAgent, token } = useUser();
   const [callAssignments, setCallAssignments] = useState([]);
   const [queueUpdates, setQueueUpdates] = useState(null);
   const [agentNotifications, setAgentNotifications] = useState([]);
   const [supportRequests, setSupportRequests] = useState([]);
-
-
 
   // Support request assignments (when user chooses this agent)
   useRoleChannelListener("request_assigned", (data) => {
@@ -33,6 +30,9 @@ export const useAgentSubscriptions = () => {
   useRoleChannelListener("permission_cancelled", (data) => {
     console.log("Permission cancelled notification:", data);
     setAgentNotifications((prev) => [data, ...prev.slice(0, 49)]);
+
+    // Không auto redirect nữa, để component PermissionRequestPage xử lý
+    // Agent sẽ phải xác nhận trong modal trước khi navigate
   });
 
   return {
@@ -40,6 +40,5 @@ export const useAgentSubscriptions = () => {
     queueUpdates,
     agentNotifications,
     supportRequests,
-    
   };
 };
