@@ -115,4 +115,9 @@ public class RecordController {
         recordService.rating(key, rating, feedback);
         return ResponseEntity.ok().body("Rating successfully");
     }
+
+    @GetMapping("/summary")
+    public ResponseEntity<RecordStaticResponse> getSummary(){
+        return ResponseEntity.ok(recordService.getSummary());
+    }
 }

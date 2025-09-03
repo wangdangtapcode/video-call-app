@@ -137,7 +137,7 @@ export const useAdminSubscriptions = () => {
             axios.get(`${API_BASE_URL}/user/total`),
             axios.get(`${API_BASE_URL}/agent/total`),
             axios.get(`${API_BASE_URL}/agent/call/total`),
-            axios.get(`${API_BASE_URL}/agent/summary`),
+            axios.get(`${API_BASE_URL}/record/summary`),
         ]);
 
         setUserOnlineCount(userRes.data.total);
@@ -145,7 +145,7 @@ export const useAdminSubscriptions = () => {
         setCallCount(callRes.data.total);
 
         setAvgRating(metricRes.data.avgRating || 0);
-        setTotalCalls(metricRes.data.totalCalls || 0);
+        setTotalCalls(metricRes.data.totalCall || 0);
         setTotalCallTime(metricRes.data.totalCallTime || 0);
 
         } catch (err) {
